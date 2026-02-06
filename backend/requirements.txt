@@ -1,14 +1,8 @@
-# FastAPI and server
-fastapi==0.115.5
-uvicorn[standard]==0.32.1
-
-# Firebase
-firebase-admin==6.5.0
-
-# Pydantic v2 with pre-built wheels
-pydantic==2.10.3
-pydantic-settings==2.6.1
-
-# Utilities
+fastapi==0.109.2
+uvicorn==0.27.1
+firebase-admin==6.4.0
+pydantic==2.6.1
+pydantic-settings==2.1.0
 python-dotenv==1.0.1
-python-multipart==0.0.12
+python-multipart==0.0.9
+google-cloud-datastore==2.19.0
