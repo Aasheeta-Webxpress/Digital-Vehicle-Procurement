@@ -1,0 +1,106 @@
+# ========================================
+# DOCKER COMPOSE - Development & Production
+# ========================================
+version: '3.9'
+
+services:
+  # ========== BACKEND SERVICE ==========
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
+    container_name: tvs-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CORS_ORIGINS=http://localhost:3000,http://143.110.191.22:3000,https://your-domain.com
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_CREDENTIALS_PATH=/app/serviceAccountKey.json
+    volumes:
+      # Mount Firebase credentials (production)
+      - ${FIREBASE_CREDENTIALS_PATH}:/app/serviceAccountKey.json:ro
+    networks:
+      - tvs-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ========== FRONTEND SERVICE ==========
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: tvs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://143.110.191.22:8000/api/v1
+      - NODE_ENV=production
+    networks:
+      - tvs-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ========== REDIS CACHE (Optional) ==========
+  redis:
+    image: redis:7-alpine
+    container_name: tvs-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - tvs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - redis-data:/data
+
+  # ========== NGINX REVERSE PROXY ==========
+  nginx:
+    image: nginx:alpine
+    container_name: tvs-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - tvs-network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tvs-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

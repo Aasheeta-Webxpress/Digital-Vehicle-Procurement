@@ -1,0 +1,49 @@
+# ========================================
+# FRONTEND DOCKERFILE - Multi-stage Build
+# ========================================
+# Stage 1: Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with cache optimization
+RUN npm ci --omit=dev
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Stage 2: Production image (minimal)
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install serve globally for serving static files
+RUN npm install -g serve
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+USER nextjs
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
+
+# Expose port
+EXPOSE 3000
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Run the application
+CMD ["serve", "-s", "dist", "-l", "3000"]

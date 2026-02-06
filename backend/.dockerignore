@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.env
+.env.local
+serviceAccountKey.json
+*.log
+.git/
+.gitignore
+README.md
+.vscode/
+.idea/

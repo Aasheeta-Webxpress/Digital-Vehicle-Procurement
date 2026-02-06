@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ghcr.io/aasheeta-webxpress/digital-vehicle-procurement/frontend:latest
+    container_name: tvs-frontend
+    restart: unless-stopped
+    ports:
+      - "3020:80"  # CHANGED to 3020
+    depends_on:
+      - backend
+    networks:
+      - tvs-network
+
+  backend:
+    image: ghcr.io/aasheeta-webxpress/digital-vehicle-procurement/backend:latest
+    container_name: tvs-backend
+    restart: unless-stopped
+    ports:
+      - "8020:8000" # CHANGED to 8020
+    volumes:
+      - ./firebase-credentials.json:/app/firebase-credentials.json:ro
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase-credentials.json
+      # Update CORS to allow request from port 3020
+      - CORS_ORIGINS=http://143.110.191.22:3020,http://143.110.191.22
+    networks:
+      - tvs-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tvs-network:
+    driver: bridge
