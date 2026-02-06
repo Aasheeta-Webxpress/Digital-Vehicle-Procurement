@@ -7,6 +7,16 @@ from datetime import datetime
 from enum import Enum
 
 
+# Import user models
+from app.models.user import (
+    UserRegistration,
+    UserLogin,
+    UserMaster,
+    UserResponse,
+    LoginResponse
+)
+
+
 class BidStatus(str, Enum):
     """Bid status enumeration"""
     BID_INVITED = "Bid Invited"
@@ -155,3 +165,25 @@ class DashboardMetrics(BaseModel):
     totalBids: int
     avgReduction: float
     totalSavings: float
+
+
+__all__ = [
+    'BidStatus',
+    'Lane',
+    'VehicleDetails',
+    'Indent',
+    'IndentCreate',
+    'IndentUpdate',
+    'Bid',
+    'BidCreate',
+    'Vendor',
+    'VendorCreate',
+    'ApiKey',
+    'AnalyticsTrends',
+    'DashboardMetrics',
+    'UserRegistration',
+    'UserLogin',
+    'UserMaster',
+    'UserResponse',
+    'LoginResponse'
+]
