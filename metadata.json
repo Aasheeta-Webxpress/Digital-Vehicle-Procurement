@@ -1,0 +1,7 @@
+{
+  "name": "Digital Vehicle Procurement",
+  "description": "A comprehensive digital procurement platform for streamlining vehicle placement, bidding, and vendor management for TVS Supply Chain Solutions.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

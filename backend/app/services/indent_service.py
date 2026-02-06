@@ -1,0 +1,257 @@
+"""
+Indent Service - Business logic for indent operations
+"""
+from typing import List, Optional
+from datetime import datetime
+from firebase_admin import firestore
+import logging
+
+from app.services.firebase_service import firebase_service
+from app.models import Indent, IndentCreate, IndentUpdate, BidStatus
+
+logger = logging.getLogger(__name__)
+
+
+class IndentService:
+    """Service for indent CRUD operations"""
+    
+    @staticmethod
+    async def get_all_indents(
+        status: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 100
+    ) -> List[dict]:
+        """
+        Fetch all indents with optional filters
+        
+        Args:
+            status: Filter by status
+            start_date: Filter by placement date (start)
+            end_date: Filter by placement date (end)
+            limit: Maximum number of results
+            
+        Returns:
+            List of indent dictionaries
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                logger.warning("Firebase not connected, returning empty list")
+                return []
+            
+            query = collection
+            
+            # Apply filters
+            if status:
+                query = query.where('status', '==', status)
+            
+            if start_date:
+                query = query.where('placementDate', '>=', start_date)
+            
+            if end_date:
+                query = query.where('placementDate', '<=', end_date)
+            
+            # Order by placement date (descending)
+            query = query.order_by('placementDate', direction=firestore.Query.DESCENDING)
+            
+            # Limit results
+            query = query.limit(limit)
+            
+            # Execute query
+            docs = query.stream()
+            
+            indents = []
+            for doc in docs:
+                indent_data = doc.to_dict()
+                indent_data['id'] = doc.id
+                indents.append(indent_data)
+            
+            logger.info(f"Retrieved {len(indents)} indents")
+            return indents
+            
+        except Exception as e:
+            logger.error(f"Error fetching indents: {str(e)}")
+            raise
+    
+    @staticmethod
+    async def get_indent_by_id(indent_id: str) -> Optional[dict]:
+        """
+        Fetch a single indent by ID
+        
+        Args:
+            indent_id: Indent ID
+            
+        Returns:
+            Indent dictionary or None
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                return None
+            
+            doc = collection.document(indent_id).get()
+            
+            if doc.exists:
+                indent_data = doc.to_dict()
+                indent_data['id'] = doc.id
+                return indent_data
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error fetching indent {indent_id}: {str(e)}")
+            raise
+    
+    @staticmethod
+    async def create_indent(indent_data: IndentCreate) -> dict:
+        """
+        Create a new indent
+        
+        Args:
+            indent_data: Indent creation data
+            
+        Returns:
+            Created indent dictionary
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                raise Exception("Firebase not connected")
+            
+            # Generate ID
+            indent_id = f"TR{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            # Prepare document data
+            doc_data = indent_data.dict()
+            doc_data['id'] = indent_id
+            doc_data['status'] = BidStatus.BID_INVITED.value
+            doc_data['bidCount'] = 0
+            doc_data['createdAt'] = datetime.now().isoformat()
+            doc_data['updatedAt'] = datetime.now().isoformat()
+            
+            # Save to Firestore
+            collection.document(indent_id).set(doc_data)
+            
+            logger.info(f"Created indent: {indent_id}")
+            return doc_data
+            
+        except Exception as e:
+            logger.error(f"Error creating indent: {str(e)}")
+            raise
+    
+    @staticmethod
+    async def update_indent(indent_id: str, update_data: IndentUpdate) -> dict:
+        """
+        Update an existing indent
+        
+        Args:
+            indent_id: Indent ID
+            update_data: Update data
+            
+        Returns:
+            Updated indent dictionary
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                raise Exception("Firebase not connected")
+            
+            doc_ref = collection.document(indent_id)
+            
+            # Check if document exists
+            if not doc_ref.get().exists:
+                raise Exception(f"Indent {indent_id} not found")
+            
+            # Prepare update data (exclude None values)
+            update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
+            update_dict['updatedAt'] = datetime.now().isoformat()
+            
+            # Update document
+            doc_ref.update(update_dict)
+            
+            # Fetch and return updated document
+            updated_doc = doc_ref.get()
+            result = updated_doc.to_dict()
+            result['id'] = updated_doc.id
+            
+            logger.info(f"Updated indent: {indent_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error updating indent {indent_id}: {str(e)}")
+            raise
+    
+    @staticmethod
+    async def delete_indent(indent_id: str) -> bool:
+        """
+        Delete an indent (soft delete - set isActive=False)
+        
+        Args:
+            indent_id: Indent ID
+            
+        Returns:
+            True if successful
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                raise Exception("Firebase not connected")
+            
+            doc_ref = collection.document(indent_id)
+            
+            # Soft delete
+            doc_ref.update({
+                'isActive': False,
+                'updatedAt': datetime.now().isoformat()
+            })
+            
+            logger.info(f"Deleted indent: {indent_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting indent {indent_id}: {str(e)}")
+            raise
+    
+    @staticmethod
+    async def award_indent(indent_id: str, vendor_id: str, vendor_name: str) -> dict:
+        """
+        Award an indent to a vendor
+        
+        Args:
+            indent_id: Indent ID
+            vendor_id: Vendor ID
+            vendor_name: Vendor name
+            
+        Returns:
+            Updated indent dictionary
+        """
+        try:
+            collection = firebase_service.indents_collection
+            if not collection:
+                raise Exception("Firebase not connected")
+            
+            doc_ref = collection.document(indent_id)
+            
+            # Update indent
+            doc_ref.update({
+                'status': BidStatus.BID_AWARDED.value,
+                'winnerVendorId': vendor_id,
+                'vendorName': vendor_name,
+                'updatedAt': datetime.now().isoformat()
+            })
+            
+            # Fetch and return updated document
+            updated_doc = doc_ref.get()
+            result = updated_doc.to_dict()
+            result['id'] = updated_doc.id
+            
+            logger.info(f"Awarded indent {indent_id} to vendor {vendor_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error awarding indent {indent_id}: {str(e)}")
+            raise
+
+
+indent_service = IndentService()
