@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Search, Download, UserCircle, ChevronDown, Check, LogOut } from 'lucide-react';
 import { TOP_NAV_ITEMS } from '../constants';
 import { UserRole } from '../types';
