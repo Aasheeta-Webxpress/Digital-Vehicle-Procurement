@@ -1,7 +1,7 @@
 """
 User Models - Pydantic schemas for user management
 """
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, Literal
 from datetime import datetime
 import re
@@ -15,7 +15,8 @@ class UserRegistration(BaseModel):
     mobileNo: str = Field(..., description="Mobile number")
     companyCode: int = Field(..., description="Company code")
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         """Validate password strength"""
         if len(v) < 8:
@@ -30,7 +31,8 @@ class UserRegistration(BaseModel):
             raise ValueError('Password must contain at least one special character (@$!%*?&#)')
         return v
     
-    @validator('mobileNo')
+    @field_validator('mobileNo')
+    @classmethod
     def validate_mobile(cls, v):
         """Validate mobile number"""
         if not re.match(r'^\d{10}$', v):
@@ -45,8 +47,11 @@ class UserLogin(BaseModel):
 
 
 class UserMaster(BaseModel):
-    """User master record in Firestore"""
-    _id: str = Field(..., description="Composite ID: companyCode-userId")
+    """
+    User Master model for Firestore storage
+    Uses Field alias to handle Firestore's _id field
+    """
+    id: str = Field(..., alias="_id", description="Composite ID: companyCode-userId")
     userId: str = Field(..., description="Unique user ID")
     userStatus: str = Field(default="Permanent", description="User status")
     userType: Literal["Customer", "Vendor"] = Field(..., description="User type")
@@ -57,10 +62,12 @@ class UserMaster(BaseModel):
     companyCode: int = Field(..., description="Company code")
     firebaseUid: str = Field(..., description="Firebase Auth UID")
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "populate_by_name": True,  # Allow both 'id' and '_id'
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 
 class UserResponse(BaseModel):
