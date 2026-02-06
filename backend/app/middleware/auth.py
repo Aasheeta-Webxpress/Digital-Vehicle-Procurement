@@ -14,7 +14,7 @@ security = HTTPBearer()
 
 
 async def verify_token(credentials: HTTPAuthorizationCredentials) -> dict:
-    """Verify Firebase ID token"""
+    """Verify JWT token"""
     token = credentials.credentials
     
     decoded_token = await auth_service.verify_token(token)
@@ -31,8 +31,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials) -> dict:
     """Get current authenticated user"""
     decoded_token = await verify_token(credentials)
     
-    # Fetch user data from Firestore
-    user_data = await auth_service.get_user_by_uid(decoded_token['uid'])
+    # Fetch user data from Firestore using email (sub)
+    email = decoded_token.get('sub')
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    user_data = await auth_service.get_user_by_email(email)
     
     if not user_data:
         raise HTTPException(

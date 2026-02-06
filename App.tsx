@@ -1,5 +1,5 @@
 
-import  { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { UserRole, BidStatus, Indent, Bid, ViewMode } from './types';
 import { MOCK_VENDORS, TOP_NAV_ITEMS } from './constants';
 import { ProcurementService } from './services';

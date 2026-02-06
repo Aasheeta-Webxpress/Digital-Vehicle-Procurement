@@ -1,33 +1,58 @@
 """
-Authentication Service - Firebase Auth integration
+Authentication Service - Custom JWT Implementation
+Replaces Firebase Auth with direct DB credential management
 """
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime
-from firebase_admin import auth
+from datetime import datetime, timedelta
+import jwt
+from passlib.context import CryptContext
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from app.services.firebase_service import firebase_service
 from app.models.user import UserRegistration, UserLogin, UserMaster, UserResponse
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Password hashing configuration
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class AuthService:
-    """Service for user authentication and management"""
+    """Service for user authentication and management (Custom JWT)"""
     
     def __init__(self):
         self.db = firebase_service.db
         if not self.db:
             logger.warning("⚠️  Firebase not connected - Auth service will not work")
 
-    
+    @staticmethod
+    def verify_password(plain_password, hashed_password):
+        """Verify plain password against hash"""
+        return pwd_context.verify(plain_password, hashed_password)
+
+    @staticmethod
+    def get_password_hash(password):
+        """Generate password hash"""
+        return pwd_context.hash(password)
+
+    @staticmethod
+    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+        """Create JWT access token"""
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+        return encoded_jwt
+
     def _generate_user_id(self, company_code: int) -> str:
-        """Generate next sequential user ID for a company"""
+        """Generate next sequential user ID for a company (USRxxxx)"""
         try:
-            # Check if Firebase is connected
             if not self.db:
-                logger.warning("Firebase not connected, using default user ID")
                 return "USR0001"
             
             # Query existing users for this company
@@ -56,38 +81,39 @@ class AuthService:
     
     async def register_user(self, registration: UserRegistration) -> Dict[str, Any]:
         """
-        Register a new user with Firebase Auth and Firestore
+        Register a new user (Custom Auth Flow)
         
-        Flow:
-        1. Create user in Firebase Auth
-        2. Generate userId
-        3. Save user profile in user_master collection
-        4. Map Firebase UID with userId
+        1. Check if email already exists
+        2. Generate userId and composite _id
+        3. Hash password
+        4. Save to user_master
         """
         try:
-            # Check Firebase connection
             if not self.db:
-                return {
-                    "success": False,
-                    "message": "Firebase not connected. Please check server configuration."
-                }
-            # Step 1: Create user in Firebase Auth
-            firebase_user = auth.create_user(
-                email=registration.username,
-                password=registration.password,
-                email_verified=False
-            )
+                return {"success": False, "message": "Database not connected"}
             
-            logger.info(f"Created Firebase user: {firebase_user.uid}")
+            # Step 1: Check if email exists
+            users_ref = self.db.collection('user_master')
+            query = users_ref.where(filter=FieldFilter('emailId', '==', registration.username))
+            existing_docs = list(query.stream())
             
-            # Step 2: Generate userId
+            if existing_docs:
+                return {"success": False, "message": "Email already registered"}
+            
+            # Step 2: Generate IDs
             user_id = self._generate_user_id(registration.companyCode)
             composite_id = f"{registration.companyCode}-{user_id}"
             
-            # Step 3: Create user_master record
+            # Step 3: Hash password
+            hashed_password = self.get_password_hash(registration.password)
+            
+            # Step 4: Create user_master record
+            # Note: We use firebaseUid field to store legacy or self-reference if needed, 
+            # but for custom auth it's less critical. We'll store the userId there or a placeholder.
             user_data = UserMaster(
-                **{"_id": composite_id},  # Use alias
+                **{"_id": composite_id},
                 userId=user_id,
+                userpassword=hashed_password,
                 userStatus="Permanent",
                 userType=registration.userType,
                 mobileNo=registration.mobileNo,
@@ -95,7 +121,7 @@ class AuthService:
                 isActive=True,
                 entryDate=datetime.utcnow(),
                 companyCode=registration.companyCode,
-                firebaseUid=firebase_user.uid
+                firebaseUid=composite_id # Use composite ID as placeholder for UID
             )
             
             # Save to Firestore
@@ -103,7 +129,7 @@ class AuthService:
                 user_data.model_dump(mode='json', by_alias=True)
             )
             
-            logger.info(f"Created user_master record: {composite_id}")
+            logger.info(f"Registered user: {composite_id}")
             
             return {
                 "success": True,
@@ -112,76 +138,51 @@ class AuthService:
                 "email": registration.username
             }
             
-        except auth.EmailAlreadyExistsError:
-            logger.warning(f"Email already exists: {registration.username}")
-            return {
-                "success": False,
-                "message": "Email already registered"
-            }
         except Exception as e:
             logger.error(f"Registration error: {str(e)}", exc_info=True)
-            # Cleanup: try to delete Firebase user if created
-            try:
-                if 'firebase_user' in locals():
-                    auth.delete_user(firebase_user.uid)
-            except:
-                pass
-            
-            return {
-                "success": False,
-                "message": f"Registration failed: {str(e)}"
-            }
+            return {"success": False, "message": f"Registration failed: {str(e)}"}
     
     async def login_user(self, login: UserLogin) -> Dict[str, Any]:
         """
-        Login user with Firebase Auth
+        Login user (Custom Auth Flow)
         
-        Flow:
-        1. Verify credentials with Firebase Auth (via custom token)
-        2. Fetch user record from user_master
-        3. Check if isActive = true
-        4. Return user data with role
+        1. Find user by email
+        2. Verify password hash
+        3. Check isActive
+        4. Generate JWT
         """
         try:
-            # Check Firebase connection
             if not self.db:
-                return {
-                    "success": False,
-                    "message": "Firebase not connected. Please check server configuration."
-                }
-            # Get user by email from Firebase Auth
-            firebase_user = auth.get_user_by_email(login.username)
+                return {"success": False, "message": "Database not connected"}
             
-            # Fetch user record from Firestore
+            # Step 1: Find user
             users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('firebaseUid', '==', firebase_user.uid))
+            query = users_ref.where(filter=FieldFilter('emailId', '==', login.username))
             docs = list(query.stream())
             
             if not docs:
-                return {
-                    "success": False,
-                    "message": "User not found in database"
-                }
+                return {"success": False, "message": "Invalid credentials"}
             
             user_doc = docs[0]
             user_data = user_doc.to_dict()
             
-            # Check if user is active
-            if not user_data.get('isActive', False):
-                return {
-                    "success": False,
-                    "message": "User account is deactivated"
-                }
+            # Step 2: Verify password
+            stored_password = user_data.get('userpassword')
+            if not stored_password or not self.verify_password(login.password, stored_password):
+                return {"success": False, "message": "Invalid credentials"}
             
-            # Generate custom token for the user
-            custom_token = auth.create_custom_token(
-                firebase_user.uid,
-                {
-                    'userType': user_data.get('userType'),
-                    'userId': user_data.get('userId'),
-                    'companyCode': user_data.get('companyCode')
-                }
-            )
+            # Step 3: Check status
+            if not user_data.get('isActive', False):
+                return {"success": False, "message": "User account is deactivated"}
+            
+            # Step 4: Generate JWT
+            token_data = {
+                "sub": user_data.get('emailId'),  # Subject
+                "userId": user_data.get('userId'),
+                "userType": user_data.get('userType'),
+                "companyCode": user_data.get('companyCode')
+            }
+            token = self.create_access_token(token_data)
             
             # Prepare user response
             user_response = UserResponse(
@@ -199,49 +200,41 @@ class AuthService:
                 "success": True,
                 "message": "Login successful",
                 "user": user_response.model_dump(),
-                "token": custom_token.decode('utf-8') if isinstance(custom_token, bytes) else custom_token,
-                "firebaseUid": firebase_user.uid
+                "token": token
             }
             
-        except auth.UserNotFoundError:
-            return {
-                "success": False,
-                "message": "Invalid credentials"
-            }
         except Exception as e:
             logger.error(f"Login error: {str(e)}", exc_info=True)
-            return {
-                "success": False,
-                "message": f"Login failed: {str(e)}"
-            }
+            return {"success": False, "message": f"Login failed: {str(e)}"}
     
     async def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
-        """Verify Firebase ID token"""
+        """Verify Custom JWT token"""
         try:
-            decoded_token = auth.verify_id_token(token)
-            return decoded_token
+            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+            return payload
+        except jwt.ExpiredSignatureError:
+            logger.warning("Token expired")
+            return None
+        except jwt.InvalidTokenError:
+            logger.warning("Invalid token")
+            return None
         except Exception as e:
             logger.error(f"Token verification error: {str(e)}")
             return None
     
-    async def get_user_by_uid(self, firebase_uid: str) -> Optional[Dict[str, Any]]:
-        """Get user data from Firestore by Firebase UID"""
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user data by email"""
         try:
-            # Check Firebase connection
-            if not self.db:
-                logger.error("Firebase not connected")
-                return None
+            if not self.db: return None
             users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('firebaseUid', '==', firebase_uid))
+            query = users_ref.where(filter=FieldFilter('emailId', '==', email))
             docs = list(query.stream())
-            
             if docs:
                 return docs[0].to_dict()
             return None
         except Exception as e:
             logger.error(f"Error fetching user: {str(e)}")
             return None
-
 
 # Singleton instance
 auth_service = AuthService()

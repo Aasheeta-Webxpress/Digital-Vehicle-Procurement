@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     
     # Optional: Gemini API Key
     gemini_api_key: str = ""
+
+    # JWT Authentication
+    secret_key: str = "tvs-procurement-secret-key-change-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24  # 24 hours
     
     class Config:
         env_file = ".env"

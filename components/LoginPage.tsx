@@ -33,6 +33,9 @@ const LoginPage = () => {
                 if (!/[0-9]/.test(password)) {
                     throw new Error('Password must contain at least one number');
                 }
+                if (!/[@$!%*?&#]/.test(password)) {
+                    throw new Error('Password must contain at least one special character (@$!%*?&#)');
+                }
 
                 await register(email, password, mobileNo, userType, parseInt(companyCode));
             } else {
@@ -120,14 +123,14 @@ const LoginPage = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-sm font-medium"
-                                    placeholder={isRegisterMode ? "Min 8 chars, 1 uppercase, 1 number" : "Enter your password"}
+                                    placeholder={isRegisterMode ? "Min 8 chars, 1 upper, 1 lower, 1 number, 1 special" : "Enter your password"}
                                     required
                                     disabled={isLoading}
                                 />
                             </div>
                             {isRegisterMode && (
                                 <p className="text-xs text-gray-500 mt-1.5">
-                                    Must contain: 8+ characters, uppercase, lowercase, and number
+                                    Must contain: 8+ characters, uppercase, lowercase, number, and special char
                                 </p>
                             )}
                         </div>

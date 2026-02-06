@@ -53,6 +53,7 @@ class UserMaster(BaseModel):
     """
     id: str = Field(..., alias="_id", description="Composite ID: companyCode-userId")
     userId: str = Field(..., description="Unique user ID")
+    userpassword: str = Field(..., description="Hashed password")
     userStatus: str = Field(default="Permanent", description="User status")
     userType: Literal["Customer", "Vendor"] = Field(..., description="User type")
     mobileNo: str = Field(..., description="Mobile number")

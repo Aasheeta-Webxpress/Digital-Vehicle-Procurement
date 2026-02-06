@@ -24,10 +24,10 @@ async def register(registration: UserRegistration):
     
     Flow:
     1. Validate input data
-    2. Create user in Firebase Auth
+    2. Check if email exists
     3. Generate userId
-    4. Save user profile in user_master collection
-    5. Map Firebase UID with userId
+    4. Hash password
+    5. Save user profile in user_master collection
     """
     result = await auth_service.register_user(registration)
     
@@ -53,13 +53,10 @@ async def login(login_data: UserLogin):
     Login user with email and password
     
     Flow:
-    1. Verify credentials with Firebase Auth
-    2. Fetch user record from user_master
+    1. Find user by email
+    2. Verify password hash
     3. Check if isActive = true
-    4. Return user data with custom token
-    
-    Note: The client should exchange the custom token for an ID token
-    using Firebase Client SDK
+    4. Return user data with JWT token
     """
     result = await auth_service.login_user(login_data)
     
@@ -118,7 +115,7 @@ async def verify_user_token(credentials: HTTPAuthorizationCredentials = Depends(
     return {
         "success": True,
         "message": "Token is valid",
-        "uid": decoded_token.get('uid'),
+        "email": decoded_token.get('sub'),
         "userType": decoded_token.get('userType'),
         "userId": decoded_token.get('userId')
     }
