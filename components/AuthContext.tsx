@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
   userId: string;
@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, mobileNo: string, userType: 'Customer' | 'Vendor', companyCode: number) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -41,7 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token');
     const storedUser = localStorage.getItem('auth_user');
-    
+
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
@@ -52,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     try {
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-      
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -70,12 +71,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.user && data.token) {
         // Store token and user info
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
-        
+
         setToken(data.token);
         setUser(data.user);
       } else {
@@ -83,6 +84,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
+      throw error;
+    }
+  };
+
+  const register = async (email: string, password: string, mobileNo: string, userType: 'Customer' | 'Vendor', companyCode: number) => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: email,
+          password: password,
+          mobileNo: mobileNo,
+          userType: userType,
+          companyCode: companyCode,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Registration failed');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // After successful registration, automatically log in
+        await login(email, password);
+      } else {
+        throw new Error(data.message || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
       throw error;
     }
   };
@@ -98,6 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     token,
     login,
+    register,
     logout,
     isAuthenticated: !!token && !!user,
     isLoading,
