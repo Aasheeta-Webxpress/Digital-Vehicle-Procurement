@@ -18,10 +18,18 @@ class AuthService:
     
     def __init__(self):
         self.db = firebase_service.db
+        if not self.db:
+            logger.warning("⚠️  Firebase not connected - Auth service will not work")
+
     
     def _generate_user_id(self, company_code: int) -> str:
         """Generate next sequential user ID for a company"""
         try:
+            # Check if Firebase is connected
+            if not self.db:
+                logger.warning("Firebase not connected, using default user ID")
+                return "USR0001"
+            
             # Query existing users for this company
             users_ref = self.db.collection('user_master')
             query = users_ref.where(filter=FieldFilter('companyCode', '==', company_code))
@@ -57,6 +65,12 @@ class AuthService:
         4. Map Firebase UID with userId
         """
         try:
+            # Check Firebase connection
+            if not self.db:
+                return {
+                    "success": False,
+                    "message": "Firebase not connected. Please check server configuration."
+                }
             # Step 1: Create user in Firebase Auth
             firebase_user = auth.create_user(
                 email=registration.username,
@@ -129,6 +143,12 @@ class AuthService:
         4. Return user data with role
         """
         try:
+            # Check Firebase connection
+            if not self.db:
+                return {
+                    "success": False,
+                    "message": "Firebase not connected. Please check server configuration."
+                }
             # Get user by email from Firebase Auth
             firebase_user = auth.get_user_by_email(login.username)
             
@@ -207,6 +227,10 @@ class AuthService:
     async def get_user_by_uid(self, firebase_uid: str) -> Optional[Dict[str, Any]]:
         """Get user data from Firestore by Firebase UID"""
         try:
+            # Check Firebase connection
+            if not self.db:
+                logger.error("Firebase not connected")
+                return None
             users_ref = self.db.collection('user_master')
             query = users_ref.where(filter=FieldFilter('firebaseUid', '==', firebase_uid))
             docs = list(query.stream())
