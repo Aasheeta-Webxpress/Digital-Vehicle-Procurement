@@ -99,6 +99,11 @@ class FirebaseService:
     def api_keys_collection(self):
         if self._db: return self._db.collection('api_keys')
         return None
+    
+    @property
+    def user_master_collection(self):
+        if self._db: return self._db.collection('user_master')
+        return None
 
 
 # Singleton instance

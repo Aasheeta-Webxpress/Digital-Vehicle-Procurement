@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is active
+    function isActiveUser(userId) {
+      let userDoc = get(/databases/$(database)/documents/user_master/$(userId));
+      return userDoc.data.isActive == true;
+    }
+    
+    // Helper function to check user type
+    function hasUserType(userType) {
+      return request.auth.token.userType == userType;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(firebaseUid) {
+      return request.auth.uid == firebaseUid;
+    }
+    
+    // User Master Collection Rules
+    match /user_master/{userId} {
+      // Allow read if authenticated and user is active
+      allow read: if isAuthenticated() && 
+                     (isOwner(resource.data.firebaseUid) || 
+                      hasUserType('Admin'));
+      
+      // Allow create only during registration (no auth required)
+      // This is handled by backend with Admin SDK
+      allow create: if true;
+      
+      // Allow update only by the user themselves or admin
+      allow update: if isAuthenticated() && 
+                       (isOwner(resource.data.firebaseUid) || 
+                        hasUserType('Admin'));
+      
+      // Prevent deletion (only admin can deactivate)
+      allow delete: if isAuthenticated() && hasUserType('Admin');
+    }
+    
+    // Indents Collection Rules
+    match /indents/{indentId} {
+      // Customers can read their own indents
+      // Vendors can read all indents
+      allow read: if isAuthenticated() && 
+                     (hasUserType('Vendor') || 
+                      (hasUserType('Customer') && 
+                       resource.data.companyCode == request.auth.token.companyCode));
+      
+      // Only customers can create indents
+      allow create: if isAuthenticated() && 
+                       hasUserType('Customer') &&
+                       request.resource.data.companyCode == request.auth.token.companyCode;
+      
+      // Only the creator can update their indent
+      allow update: if isAuthenticated() && 
+                       hasUserType('Customer') &&
+                       resource.data.companyCode == request.auth.token.companyCode;
+      
+      // Only the creator can delete their indent
+      allow delete: if isAuthenticated() && 
+                       hasUserType('Customer') &&
+                       resource.data.companyCode == request.auth.token.companyCode;
+    }
+    
+    // Bids Collection Rules
+    match /bids/{bidId} {
+      // Vendors can read their own bids
+      // Customers can read bids on their indents
+      allow read: if isAuthenticated() && 
+                     (hasUserType('Vendor') || hasUserType('Customer'));
+      
+      // Only vendors can create bids
+      allow create: if isAuthenticated() && hasUserType('Vendor');
+      
+      // Only the bid creator can update their bid
+      allow update: if isAuthenticated() && 
+                       hasUserType('Vendor') &&
+                       isOwner(resource.data.firebaseUid);
+      
+      // Only the bid creator can delete their bid
+      allow delete: if isAuthenticated() && 
+                       hasUserType('Vendor') &&
+                       isOwner(resource.data.firebaseUid);
+    }
+    
+    // Vendors Collection Rules
+    match /vendors/{vendorId} {
+      // All authenticated users can read vendor info
+      allow read: if isAuthenticated();
+      
+      // Only vendors can update their own profile
+      allow update: if isAuthenticated() && 
+                       hasUserType('Vendor') &&
+                       isOwner(resource.data.firebaseUid);
+      
+      // Prevent creation and deletion (handled by admin)
+      allow create, delete: if false;
+    }
+    
+    // Lanes Collection Rules
+    match /lanes/{laneId} {
+      // All authenticated users can read lanes
+      allow read: if isAuthenticated();
+      
+      // Only admins can modify lanes
+      allow write: if isAuthenticated() && hasUserType('Admin');
+    }
+    
+    // API Keys Collection Rules
+    match /api_keys/{keyId} {
+      // Only admins can access API keys
+      allow read, write: if isAuthenticated() && hasUserType('Admin');
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

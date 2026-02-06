@@ -9,7 +9,7 @@ import logging
 import time
 
 from app.config import settings
-from app.routes import indents, bids, analytics
+from app.routes import indents, bids, analytics, auth
 from app.services.firebase_service import firebase_service
 
 # Configure logging
@@ -59,6 +59,7 @@ async def log_requests(request: Request, call_next):
 
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(indents.router)
 app.include_router(bids.router)
 app.include_router(analytics.router)
