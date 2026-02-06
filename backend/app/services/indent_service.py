@@ -23,7 +23,7 @@ class IndentService:
         limit: int = 100
     ) -> List[dict]:
         """
-        Fetch all indents with optional filters
+        Fetch all indents with optional filters (simplified for Datastore Mode)
         
         Args:
             status: Filter by status
@@ -40,32 +40,29 @@ class IndentService:
                 logger.warning("Firebase not connected, returning empty list")
                 return []
             
-            query = collection
-            
-            # Apply filters
-            if status:
-                query = query.where('status', '==', status)
-            
-            if start_date:
-                query = query.where('placementDate', '>=', start_date)
-            
-            if end_date:
-                query = query.where('placementDate', '<=', end_date)
-            
-            # Order by placement date (descending)
-            query = query.order_by('placementDate', direction=firestore.Query.DESCENDING)
-            
-            # Limit results
-            query = query.limit(limit)
-            
-            # Execute query
-            docs = query.stream()
+            # Simplified query for Datastore Mode compatibility
+            # Get all documents and filter in memory
+            docs = collection.limit(limit).stream()
             
             indents = []
             for doc in docs:
                 indent_data = doc.to_dict()
                 indent_data['id'] = doc.id
+                
+                # Apply filters in memory
+                if status and indent_data.get('status') != status:
+                    continue
+                
+                if start_date and indent_data.get('placementDate', '') < start_date:
+                    continue
+                
+                if end_date and indent_data.get('placementDate', '') > end_date:
+                    continue
+                
                 indents.append(indent_data)
+            
+            # Sort by placement date (descending) in memory
+            indents.sort(key=lambda x: x.get('placementDate', ''), reverse=True)
             
             logger.info(f"Retrieved {len(indents)} indents")
             return indents

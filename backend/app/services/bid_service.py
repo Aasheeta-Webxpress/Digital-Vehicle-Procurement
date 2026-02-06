@@ -38,29 +38,26 @@ class BidService:
                 logger.warning("Firebase not connected, returning empty list")
                 return []
             
-            query = collection
-            
-            # Apply filters
-            if indent_id:
-                query = query.where('indentId', '==', indent_id)
-            
-            if vendor_id:
-                query = query.where('vendorId', '==', vendor_id)
-            
-            # Order by timestamp (descending)
-            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
-            
-            # Limit results
-            query = query.limit(limit)
-            
-            # Execute query
-            docs = query.stream()
+            # Simplified query for Datastore Mode
+            # Get all documents and filter/sort in memory
+            docs = collection.limit(limit).stream()
             
             bids = []
             for doc in docs:
                 bid_data = doc.to_dict()
                 bid_data['id'] = doc.id
+                
+                # Apply filters in memory
+                if indent_id and bid_data.get('indentId') != indent_id:
+                    continue
+                
+                if vendor_id and bid_data.get('vendorId') != vendor_id:
+                    continue
+                
                 bids.append(bid_data)
+            
+            # Sort by timestamp (descending) in memory
+            bids.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
             
             logger.info(f"Retrieved {len(bids)} bids")
             return bids
@@ -112,7 +109,7 @@ class BidService:
     @staticmethod
     async def submit_bid(bid_data: BidCreate) -> dict:
         """
-        Submit a new bid with transaction to update indent
+        Submit a new bid and update indent (without transactions for Datastore Mode compatibility)
         
         Args:
             bid_data: Bid creation data
@@ -121,8 +118,7 @@ class BidService:
             Created bid dictionary with update status
         """
         try:
-            db = firebase_service.db
-            if not db:
+            if not firebase_service.bids_collection or not firebase_service.indents_collection:
                 raise Exception("Firebase not connected")
             
             # Generate bid ID
@@ -138,47 +134,42 @@ class BidService:
             indent_ref = firebase_service.indents_collection.document(bid_data.indentId)
             bid_ref = firebase_service.bids_collection.document(bid_id)
             
-            # Use transaction to ensure data consistency
-            @firestore.transactional
-            def update_in_transaction(transaction):
-                # Get current indent
-                indent_snapshot = indent_ref.get(transaction=transaction)
-                
-                if not indent_snapshot.exists:
-                    raise Exception(f"Indent {bid_data.indentId} not found")
-                
-                indent = indent_snapshot.to_dict()
-                
-                # Check if new bid is lower than current lowest
-                current_lowest = indent.get('lowestBid', float('inf'))
-                is_new_lowest = bid_data.amount < current_lowest
-                
-                # Prepare indent updates
-                indent_updates = {
-                    'bidCount': indent.get('bidCount', 0) + 1,
-                    'updatedAt': datetime.now().isoformat()
-                }
-                
-                if is_new_lowest:
-                    indent_updates['lowestBid'] = bid_data.amount
-                    indent_updates['lowestBidVendorName'] = bid_data.vendorName
-                    indent_updates['status'] = BidStatus.IN_PROGRESS.value
-                
-                # Update indent
-                transaction.update(indent_ref, indent_updates)
-                
-                # Create bid
-                transaction.set(bid_ref, bid_dict)
-                
-                return {
-                    'bid': bid_dict,
-                    'isNewLowest': is_new_lowest,
-                    'indentUpdates': indent_updates
-                }
+            # Get current indent (without transaction)
+            indent_snapshot = indent_ref.get()
             
-            # Execute transaction
-            transaction = db.transaction()
-            result = update_in_transaction(transaction)
+            if not indent_snapshot.exists:
+                raise Exception(f"Indent {bid_data.indentId} not found")
+            
+            indent = indent_snapshot.to_dict()
+            
+            # Check if new bid is lower than current lowest
+            current_lowest = indent.get('lowestBid', float('inf'))
+            is_new_lowest = bid_data.amount < current_lowest
+            
+            # Prepare indent updates
+            indent_updates = {
+                'bidCount': indent.get('bidCount', 0) + 1,
+                'updatedAt': datetime.now().isoformat()
+            }
+            
+            if is_new_lowest:
+                indent_updates['lowestBid'] = bid_data.amount
+                indent_updates['lowestBidVendorName'] = bid_data.vendorName
+                indent_updates['status'] = BidStatus.IN_PROGRESS.value
+            
+            # Create bid first
+            bid_ref.set(bid_dict)
+            logger.info(f"Created bid {bid_id}")
+            
+            # Then update indent
+            indent_ref.update(indent_updates)
+            logger.info(f"Updated indent {bid_data.indentId}")
+            
+            result = {
+                'bid': bid_dict,
+                'isNewLowest': is_new_lowest,
+                'indentUpdates': indent_updates
+            }
             
             logger.info(f"Submitted bid {bid_id} for indent {bid_data.indentId}")
             return result
