@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserRole, BidStatus, Indent, Bid, ViewMode } from './types';
 import { MOCK_VENDORS, TOP_NAV_ITEMS } from './constants';
 import { ProcurementService } from './services';
+import { AuthProvider, useAuth } from './components/AuthContext';
+import LoginPage from './components/LoginPage';
 import Header from './components/Header';
 import WorkflowBoard from './components/WorkflowBoard';
 import WorkflowList from './components/WorkflowList';
@@ -14,7 +16,9 @@ import TrendsView from './components/TrendsView';
 import ApiManagement from './components/ApiManagement';
 import { Calendar, Download, Plus, LayoutGrid, List, Loader2 } from 'lucide-react';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+
   const [currentUser, setCurrentUser] = useState<{ role: UserRole; id: string; name: string }>({
     role: UserRole.CUSTOMER,
     id: 'C1',
@@ -30,11 +34,35 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndentForHistory, setSelectedIndentForHistory] = useState<Indent | null>(null);
   const [showIndentForm, setShowIndentForm] = useState(false);
-  
+
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
+
+  // Update currentUser based on logged-in user
+  useEffect(() => {
+    if (user) {
+      setCurrentUser({
+        role: user.userType === 'Customer' ? UserRole.CUSTOMER : UserRole.VENDOR,
+        id: user.userId,
+        name: user.emailId.split('@')[0]
+      });
+    }
+  }, [user]);
+
+  // Show login page if not authenticated
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   // Connect to the Firebase/Python data stream
   useEffect(() => {
@@ -61,17 +89,17 @@ const App: React.FC = () => {
 
   // Simulator for competitive bids (Now integrated with the service layer)
   useEffect(() => {
-    if (activeTab !== 'ACTIVE') return; 
+    if (activeTab !== 'ACTIVE') return;
 
     const interval = setInterval(async () => {
-      const liveIndents = indents.filter(i => 
+      const liveIndents = indents.filter(i =>
         i.status === BidStatus.IN_PROGRESS || i.status === BidStatus.BID_INVITED || i.status === BidStatus.RE_BID
       );
       if (liveIndents.length > 0 && Math.random() > 0.7) {
         const indent = liveIndents[Math.floor(Math.random() * liveIndents.length)];
         const otherVendors = MOCK_VENDORS.filter(v => v.id !== currentUser.id);
         const vendor = otherVendors[Math.floor(Math.random() * otherVendors.length)];
-        
+
         const newBid: Bid = {
           id: `B${Date.now()}`,
           indentId: indent.id,
@@ -127,7 +155,7 @@ const App: React.FC = () => {
     }
 
     const q = searchQuery.toLowerCase();
-    return base.filter(i => 
+    return base.filter(i =>
       i.requestId.toLowerCase().includes(q) ||
       i.lane.source.toLowerCase().includes(q) ||
       i.lane.destination.toLowerCase().includes(q) ||
@@ -149,7 +177,7 @@ const App: React.FC = () => {
       Vendor: i.lowestBidVendorName,
       Savings: i.estimatedPrice - (i.lowestBid || 0)
     }));
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + Object.keys(csvData[0]).join(",") + "\n"
       + csvData.map(row => Object.values(row).join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -165,7 +193,7 @@ const App: React.FC = () => {
     setCurrentUser({
       role,
       id: role === UserRole.VENDOR ? 'V1' : 'C1',
-      name: role === UserRole.VENDOR ? 'Safe Logistics India' : 'ABBL Admin'
+      name: role === UserRole.VENDOR ? 'Safe Logistics India' : user?.emailId.split('@')[0] || 'ABBL Admin'
     });
     setShowIndentForm(false);
     setSelectedIndentForHistory(null);
@@ -183,9 +211,9 @@ const App: React.FC = () => {
         {activeTab === 'AWARDED' && (
           <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1.5 rounded-xl shadow-sm">
             <Calendar className="w-3.5 h-3.5 text-gray-400" />
-            <input type="date" className="text-[10px] font-black outline-none text-gray-900" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})} />
+            <input type="date" className="text-[10px] font-black outline-none text-gray-900" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })} />
             <span className="text-gray-300 font-bold text-[10px]">TO</span>
-            <input type="date" className="text-[10px] font-black outline-none text-gray-900" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})} />
+            <input type="date" className="text-[10px] font-black outline-none text-gray-900" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })} />
           </div>
         )}
 
@@ -197,7 +225,7 @@ const App: React.FC = () => {
         {activeTab === 'AWARDED' && (
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-[10px] font-black rounded-xl hover:bg-green-700 shadow-lg transition-all uppercase tracking-widest"><Download className="w-3.5 h-3.5" />Export</button>
         )}
-        
+
         {currentUser.role === UserRole.CUSTOMER && activeTab === 'ACTIVE' && (
           <button onClick={() => setShowIndentForm(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[10px] font-black rounded-xl hover:bg-blue-700 shadow-lg transition-all uppercase tracking-widest"><Plus className="w-3.5 h-3.5" />New Indent</button>
         )}
@@ -217,12 +245,12 @@ const App: React.FC = () => {
 
     if (showIndentForm) {
       return (
-        <IndentForm 
+        <IndentForm
           onSave={async (newIndent) => {
             await ProcurementService.createIndent(newIndent);
             setShowIndentForm(false);
-          }} 
-          onCancel={() => setShowIndentForm(false)} 
+          }}
+          onCancel={() => setShowIndentForm(false)}
           history={indents}
           onGoToApi={() => {
             setShowIndentForm(false);
@@ -260,7 +288,7 @@ const App: React.FC = () => {
       </main>
 
       {selectedIndentForHistory && (
-        <BidHistoryModal 
+        <BidHistoryModal
           indent={selectedIndentForHistory}
           bids={bids.filter(b => b.indentId === selectedIndentForHistory.id)}
           onClose={() => setSelectedIndentForHistory(null)}
@@ -284,6 +312,14 @@ const App: React.FC = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
