@@ -96,5 +96,5 @@ jobs:
       - name: ✅ Deployment Complete
         run: |
           echo "🎉 Deployment successful!"
-          echo "Frontend: http://143.110.191.22:3000"
-          echo "Backend: http://143.110.191.22:8000"
+          echo "Frontend: http://143.110.191.22:3020"
+          echo "Backend: http://143.110.191.22:8020"

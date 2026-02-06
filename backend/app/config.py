@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # Firebase Configuration
     firebase_credentials_path: str = "./serviceAccountKey.json"
-    firebase_project_id: str = "your-project-id"
+    firebase_project_id: str = "controltower-1099"
     
     # API Configuration
     api_host: str = "0.0.0.0"
