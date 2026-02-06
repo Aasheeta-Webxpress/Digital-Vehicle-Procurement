@@ -86,7 +86,7 @@ class AuthService:
             
             # Step 3: Create user_master record
             user_data = UserMaster(
-                _id=composite_id,
+                **{"_id": composite_id},  # Use alias
                 userId=user_id,
                 userStatus="Permanent",
                 userType=registration.userType,
@@ -100,7 +100,7 @@ class AuthService:
             
             # Save to Firestore
             self.db.collection('user_master').document(composite_id).set(
-                user_data.model_dump(mode='json')
+                user_data.model_dump(mode='json', by_alias=True)
             )
             
             logger.info(f"Created user_master record: {composite_id}")
