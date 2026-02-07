@@ -24,7 +24,26 @@ const WorkflowBoard: React.FC<WorkflowBoardProps> = ({ indents, onCardClick, onA
   const handleQuickBid = (e: React.MouseEvent, indentId: string) => {
     e.stopPropagation(); // Don't open the modal when clicking the button
     const amount = parseInt(bidInputs[indentId]);
-    if (onBidSubmit && amount) {
+    if (!amount) return;
+
+    // Find the indent to check against
+    const indent = indents.find(i => i.id === indentId);
+    if (!indent) return;
+
+    // Minimum Decrement Rule: New Bid must be at least ₹200 lower than current L1
+    const currentLowest = indent.lowestBid || indent.estimatedPrice;
+
+    if (amount >= currentLowest) {
+      alert(`Bid Not Acceptable: You must enter an amount lower than the current L1 offer (₹${currentLowest.toLocaleString()}).`);
+      return;
+    }
+
+    if (amount > (currentLowest - 200)) {
+      alert(`Error: Please enter an amount at least ₹200 lower than L1.\n\nMaximum allowed bid: ₹${(currentLowest - 200).toLocaleString()}`);
+      return;
+    }
+
+    if (onBidSubmit) {
       onBidSubmit(indentId, amount);
       setBidInputs(prev => ({ ...prev, [indentId]: '' }));
     }
@@ -37,15 +56,15 @@ const WorkflowBoard: React.FC<WorkflowBoardProps> = ({ indents, onCardClick, onA
         const savingsPct = indent.lowestBid ? (savings / indent.estimatedPrice) * 100 : 0;
 
         // Privacy Logic: Mask vendor name if current user is a vendor and it's not them
-        const displayLowestVendorName = currentUser.role === UserRole.VENDOR 
+        const displayLowestVendorName = currentUser.role === UserRole.VENDOR
           ? (indent.lowestBidVendorName === currentUser.name ? indent.lowestBidVendorName : 'Other Vendor')
           : (indent.lowestBidVendorName || 'Pending');
 
         const isBiddable = currentUser.role === UserRole.VENDOR && (indent.status === BidStatus.BID_INVITED || indent.status === BidStatus.IN_PROGRESS || indent.status === BidStatus.RE_BID);
 
         return (
-          <div 
-            key={indent.id} 
+          <div
+            key={indent.id}
             onClick={() => onCardClick(indent)}
             className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full"
           >
@@ -58,11 +77,10 @@ const WorkflowBoard: React.FC<WorkflowBoardProps> = ({ indents, onCardClick, onA
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
-                  indent.status === BidStatus.BID_INVITED ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                  indent.status === BidStatus.IN_PROGRESS ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                  'bg-green-50 text-green-600 border-green-200'
-                }`}>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${indent.status === BidStatus.BID_INVITED ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                    indent.status === BidStatus.IN_PROGRESS ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                      'bg-green-50 text-green-600 border-green-200'
+                  }`}>
                   {indent.status}
                 </span>
               </div>
@@ -73,7 +91,7 @@ const WorkflowBoard: React.FC<WorkflowBoardProps> = ({ indents, onCardClick, onA
               <MapPin className="w-4 h-4 text-red-500 flex-shrink-0" />
               <span className="truncate">{indent.lane.source} → {indent.lane.destination}</span>
             </h3>
-            
+
             {/* 3. Vehicle Type */}
             <div className="flex items-center gap-2 text-gray-400 mb-6 px-1">
               <Truck className="w-3.5 h-3.5" />
@@ -110,15 +128,15 @@ const WorkflowBoard: React.FC<WorkflowBoardProps> = ({ indents, onCardClick, onA
                   <div className="flex flex-col gap-2">
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                      <input 
-                        type="number" 
-                        placeholder="Your Quote" 
+                      <input
+                        type="number"
+                        placeholder="Your Quote"
                         className="w-full pl-7 pr-3 py-3 text-sm font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-600 focus:bg-white transition-all placeholder:text-slate-300"
                         value={bidInputs[indent.id] || ''}
-                        onChange={(e) => setBidInputs({...bidInputs, [indent.id]: e.target.value})}
+                        onChange={(e) => setBidInputs({ ...bidInputs, [indent.id]: e.target.value })}
                       />
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => handleQuickBid(e, indent.id)}
                       className="w-full py-3 bg-blue-600 text-white text-[10px] font-black rounded-xl hover:bg-blue-800 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2"
                     >

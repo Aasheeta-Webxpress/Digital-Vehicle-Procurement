@@ -44,7 +44,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ indents, onCardClick, isVen
               const savingsPct = indent.lowestBid ? (savings / indent.estimatedPrice) * 100 : 0;
 
               // Privacy Logic: Mask vendor name if current user is a vendor and it's not them
-              const displayLowestVendorName = isVendorView 
+              const displayLowestVendorName = isVendorView
                 ? (indent.lowestBidVendorName === vendorName ? indent.lowestBidVendorName : 'Other Vendor')
                 : (indent.lowestBidVendorName || '');
 
@@ -103,11 +103,10 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ indents, onCardClick, isVen
                   </td>
 
                   <td className="px-6 py-5 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border ${
-                      indent.status === BidStatus.BID_INVITED ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                      indent.status === BidStatus.IN_PROGRESS ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                      'bg-green-50 text-green-600 border-green-100'
-                    }`}>
+                    <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border ${indent.status === BidStatus.BID_INVITED ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                        indent.status === BidStatus.IN_PROGRESS ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                          'bg-green-50 text-green-600 border-green-100'
+                      }`}>
                       {indent.status}
                     </span>
                   </td>
@@ -118,19 +117,35 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ indents, onCardClick, isVen
                         <div className="flex gap-2 mr-2">
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
-                            <input 
-                              type="number" 
-                              placeholder="Enter Quote" 
+                            <input
+                              type="number"
+                              placeholder="Enter Quote"
                               className="w-40 pl-7 pr-3 py-2 text-sm font-black text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-600 transition-all placeholder:text-slate-300"
                               value={bidInputs[indent.id] || ''}
-                              onChange={(e) => setBidInputs({...bidInputs, [indent.id]: e.target.value})}
+                              onChange={(e) => setBidInputs({ ...bidInputs, [indent.id]: e.target.value })}
                             />
                           </div>
-                          <button 
+                          <button
                             onClick={() => {
-                              if (onBidSubmit && bidInputs[indent.id]) {
-                                onBidSubmit(indent.id, parseInt(bidInputs[indent.id]));
-                                setBidInputs({...bidInputs, [indent.id]: ''});
+                              const amount = parseInt(bidInputs[indent.id]);
+                              if (!amount) return;
+
+                              // Minimum Decrement Rule
+                              const currentLowest = indent.lowestBid || indent.estimatedPrice;
+
+                              if (amount >= currentLowest) {
+                                alert(`Bid Not Acceptable: You must enter an amount lower than the current L1 offer (₹${currentLowest.toLocaleString()}).`);
+                                return;
+                              }
+
+                              if (amount > (currentLowest - 200)) {
+                                alert(`Error: Please enter an amount at least ₹200 lower than L1.\n\nMaximum allowed bid: ₹${(currentLowest - 200).toLocaleString()}`);
+                                return;
+                              }
+
+                              if (onBidSubmit) {
+                                onBidSubmit(indent.id, amount);
+                                setBidInputs({ ...bidInputs, [indent.id]: '' });
                               }
                             }}
                             className="px-4 bg-blue-600 text-white text-[10px] font-black rounded-xl hover:bg-blue-800 transition-all active:scale-95 uppercase tracking-widest shadow-lg shadow-blue-900/10 flex items-center gap-2"
@@ -140,7 +155,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ indents, onCardClick, isVen
                           </button>
                         </div>
                       )}
-                      <button 
+                      <button
                         onClick={() => onCardClick(indent)}
                         className="p-2 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                       >
