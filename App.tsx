@@ -93,7 +93,8 @@ const AppContent: React.FC = () => {
     return () => unsubscribe();
   }, [isAuthenticated]);
 
-  // Simulator for competitive bids
+  // Simulator for competitive bids (DISABLED FOR MANUAL TESTING)
+  /*
   useEffect(() => {
     if (!isAuthenticated) return;
     if (activeTab !== 'ACTIVE') return;
@@ -123,6 +124,7 @@ const AppContent: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [indents, currentUser.id, activeTab, isAuthenticated]);
+  */
 
   const handleBidSubmit = async (indentId: string, amount: number) => {
     const newBid: Bid = {
