@@ -1,6 +1,6 @@
 """
-Authentication Service - Custom JWT Implementation
-Replaces Firebase Auth with direct DB credential management
+Authentication Service - FIXED for user_master Collection
+Uses custom JWT with Firestore user_master data (NO Firebase Auth)
 """
 import logging
 from typing import Optional, Dict, Any
@@ -15,226 +15,173 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Password hashing configuration
+# Password hashing
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
+
 class AuthService:
-    """Service for user authentication and management (Custom JWT)"""
+    """Custom JWT Auth using user_master collection"""
     
     def __init__(self):
         self.db = firebase_service.db
         if not self.db:
-            logger.warning("⚠️  Firebase not connected - Auth service will not work")
+            logger.warning("⚠️  Firebase not connected")
 
     @staticmethod
-    def verify_password(plain_password, hashed_password):
-        """Verify plain password against hash"""
-        return pwd_context.verify(plain_password, hashed_password)
-
-    @staticmethod
-    def get_password_hash(password):
-        """Generate password hash"""
+    def hash_password(password: str) -> str:
+        """Hash password"""
         return pwd_context.hash(password)
 
     @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-        """Create JWT access token"""
+    def verify_password(plain: str, hashed: str) -> bool:
+        """Verify password"""
+        return pwd_context.verify(plain, hashed)
+
+    @staticmethod
+    def create_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        """Create JWT token"""
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+            expire = datetime.utcnow() + timedelta(hours=24)
         
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
-        return encoded_jwt
+        return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
-    def _generate_user_id(self, company_code: int) -> str:
-        """Generate next sequential user ID for a company (USRxxxx)"""
+    async def register(self, reg: UserRegistration) -> Dict[str, Any]:
+        """Register new user in user_master"""
         try:
             if not self.db:
-                return "USR0001"
+                return {"success": False, "message": "Database offline"}
             
-            # Query existing users for this company
-            users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('companyCode', '==', company_code))
-            docs = query.stream()
+            # Check if email exists
+            users = self.db.collection('user_master')
+            existing = list(users.where(
+                filter=FieldFilter('emailId', '==', reg.username)
+            ).stream())
             
-            # Find highest user number
-            max_num = 0
-            for doc in docs:
-                user_id = doc.get('userId')
-                if user_id and user_id.startswith('USR'):
-                    try:
-                        num = int(user_id[3:])
-                        max_num = max(max_num, num)
-                    except ValueError:
-                        continue
-            
-            # Generate next ID
-            next_num = max_num + 1
-            return f"USR{next_num:04d}"
-            
-        except Exception as e:
-            logger.error(f"Error generating user ID: {str(e)}")
-            return "USR0001"
-    
-    async def register_user(self, registration: UserRegistration) -> Dict[str, Any]:
-        """
-        Register a new user (Custom Auth Flow)
-        
-        1. Check if email already exists
-        2. Generate userId and composite _id
-        3. Hash password
-        4. Save to user_master
-        """
-        try:
-            if not self.db:
-                return {"success": False, "message": "Database not connected"}
-            
-            # Step 1: Check if email exists
-            users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('emailId', '==', registration.username))
-            existing_docs = list(query.stream())
-            
-            if existing_docs:
+            if existing:
                 return {"success": False, "message": "Email already registered"}
             
-            # Step 2: Generate IDs
-            user_id = self._generate_user_id(registration.companyCode)
-            composite_id = f"{registration.companyCode}-{user_id}"
+            # Generate userId (USRxxxx format)
+            all_users = list(users.stream())
+            max_num = 0
+            for doc in all_users:
+                uid = doc.get('userId', '')
+                if uid.startswith('USR'):
+                    try:
+                        num = int(uid[3:])
+                        max_num = max(max_num, num)
+                    except:
+                        pass
             
-            # Step 3: Hash password
-            hashed_password = self.get_password_hash(registration.password)
+            user_id = f"USR{max_num + 1:04d}"
+            composite_id = f"{reg.companyCode}-{user_id}"
             
-            # Step 4: Create user_master record
-            # Note: We use firebaseUid field to store legacy or self-reference if needed, 
-            # but for custom auth it's less critical. We'll store the userId there or a placeholder.
-            user_data = UserMaster(
-                **{"_id": composite_id},
-                userId=user_id,
-                userpassword=hashed_password,
-                userStatus="Permanent",
-                userType=registration.userType,
-                mobileNo=registration.mobileNo,
-                emailId=registration.username,
-                isActive=True,
-                entryDate=datetime.utcnow(),
-                companyCode=registration.companyCode,
-                firebaseUid=composite_id # Use composite ID as placeholder for UID
-            )
+            # Create user document
+            user_doc = {
+                "_id": composite_id,
+                "userId": user_id,
+                "emailId": reg.username,
+                "userpassword": self.hash_password(reg.password),
+                "mobileNo": reg.mobileNo,
+                "userType": reg.userType,
+                "companyCode": reg.companyCode,
+                "userStatus": "Permanent",
+                "isActive": True,
+                "entryDate": datetime.utcnow().isoformat(),
+                "firebaseUid": composite_id
+            }
             
             # Save to Firestore
-            self.db.collection('user_master').document(composite_id).set(
-                user_data.model_dump(mode='json', by_alias=True)
-            )
+            users.document(composite_id).set(user_doc)
             
-            logger.info(f"Registered user: {composite_id}")
-            
+            logger.info(f"✅ Registered: {composite_id}")
             return {
                 "success": True,
-                "message": "User registered successfully",
-                "userId": user_id,
-                "email": registration.username
+                "message": "Registration successful",
+                "userId": user_id
             }
             
         except Exception as e:
-            logger.error(f"Registration error: {str(e)}", exc_info=True)
-            return {"success": False, "message": f"Registration failed: {str(e)}"}
-    
-    async def login_user(self, login: UserLogin) -> Dict[str, Any]:
-        """
-        Login user (Custom Auth Flow)
-        
-        1. Find user by email
-        2. Verify password hash
-        3. Check isActive
-        4. Generate JWT
-        """
+            logger.error(f"❌ Register error: {str(e)}")
+            return {"success": False, "message": str(e)}
+
+    async def login(self, login: UserLogin) -> Dict[str, Any]:
+        """Login user from user_master"""
         try:
             if not self.db:
-                return {"success": False, "message": "Database not connected"}
+                return {"success": False, "message": "Database offline"}
             
-            # Step 1: Find user
-            users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('emailId', '==', login.username))
-            docs = list(query.stream())
+            # Find user by email
+            users = self.db.collection('user_master')
+            docs = list(users.where(
+                filter=FieldFilter('emailId', '==', login.username)
+            ).stream())
             
             if not docs:
                 return {"success": False, "message": "Invalid credentials"}
             
-            user_doc = docs[0]
-            user_data = user_doc.to_dict()
+            user_data = docs[0].to_dict()
             
-            # Step 2: Verify password
-            stored_password = user_data.get('userpassword')
-            if not stored_password or not self.verify_password(login.password, stored_password):
+            # Verify password
+            if not self.verify_password(login.password, user_data.get('userpassword', '')):
                 return {"success": False, "message": "Invalid credentials"}
             
-            # Step 3: Check status
+            # Check active
             if not user_data.get('isActive', False):
-                return {"success": False, "message": "User account is deactivated"}
+                return {"success": False, "message": "Account inactive"}
             
-            # Step 4: Generate JWT
-            token_data = {
-                "sub": user_data.get('emailId'),  # Subject
-                "userId": user_data.get('userId'),
-                "userType": user_data.get('userType'),
-                "companyCode": user_data.get('companyCode')
-            }
-            token = self.create_access_token(token_data)
+            # Create token
+            token = self.create_token({
+                "sub": user_data['emailId'],
+                "userId": user_data['userId'],
+                "userType": user_data['userType'],
+                "companyCode": user_data['companyCode']
+            })
             
-            # Prepare user response
-            user_response = UserResponse(
-                userId=user_data.get('userId'),
-                userType=user_data.get('userType'),
-                mobileNo=user_data.get('mobileNo'),
-                emailId=user_data.get('emailId'),
-                isActive=user_data.get('isActive'),
-                companyCode=user_data.get('companyCode'),
-                userStatus=user_data.get('userStatus', 'Permanent'),
-                entryDate=user_data.get('entryDate')
-            )
-            
+            # Return response
             return {
                 "success": True,
                 "message": "Login successful",
-                "user": user_response.model_dump(),
-                "token": token
+                "token": token,
+                "user": {
+                    "userId": user_data['userId'],
+                    "emailId": user_data['emailId'],
+                    "userType": user_data['userType'],
+                    "mobileNo": user_data['mobileNo'],
+                    "companyCode": user_data['companyCode'],
+                    "isActive": user_data['isActive']
+                }
             }
             
         except Exception as e:
-            logger.error(f"Login error: {str(e)}", exc_info=True)
-            return {"success": False, "message": f"Login failed: {str(e)}"}
-    
-    async def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
-        """Verify Custom JWT token"""
+            logger.error(f"❌ Login error: {str(e)}")
+            return {"success": False, "message": str(e)}
+
+    async def get_user(self, email: str) -> Optional[Dict]:
+        """Get user by email"""
+        try:
+            if not self.db:
+                return None
+            
+            users = self.db.collection('user_master')
+            docs = list(users.where(
+                filter=FieldFilter('emailId', '==', email)
+            ).stream())
+            
+            return docs[0].to_dict() if docs else None
+        except:
+            return None
+
+    async def verify_token(self, token: str) -> Optional[Dict]:
+        """Verify JWT token"""
         try:
             payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
-            logger.warning("Token expired")
-            return None
-        except jwt.InvalidTokenError:
-            logger.warning("Invalid token")
-            return None
-        except Exception as e:
-            logger.error(f"Token verification error: {str(e)}")
-            return None
-    
-    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
-        """Get user data by email"""
-        try:
-            if not self.db: return None
-            users_ref = self.db.collection('user_master')
-            query = users_ref.where(filter=FieldFilter('emailId', '==', email))
-            docs = list(query.stream())
-            if docs:
-                return docs[0].to_dict()
-            return None
-        except Exception as e:
-            logger.error(f"Error fetching user: {str(e)}")
+        except:
             return None
 
-# Singleton instance
+
 auth_service = AuthService()
