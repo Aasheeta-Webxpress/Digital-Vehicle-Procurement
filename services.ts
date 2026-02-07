@@ -254,6 +254,52 @@ export class ProcurementService {
   }
 
   /**
+   * AWARD INDENT
+   * Mock: updates localStorage
+   * Production: PATCH /api/v1/indents/{indentId}/award
+   */
+  static async awardIndent(indentId: string, vendorId: string, vendorName: string, amount: number): Promise<void> {
+    if (USE_MOCK_MODE) {
+      // Mock mode
+      const data = this.getStoredData();
+      data.indents = data.indents.map(i => {
+        if (i.id === indentId) {
+          return {
+            ...i,
+            status: BidStatus.BID_AWARDED,
+            winnerVendorId: vendorId,
+            vendorName: vendorName,
+            lowestBid: amount,
+            lowestBidVendorName: vendorName
+          };
+        }
+        return i;
+      });
+      this.saveData(data);
+    } else {
+      // Production mode
+      const abortController = new AbortController();
+      try {
+        const response = await fetch(`${API_BASE_URL}/indents/${indentId}/award?vendor_id=${vendorId}&vendor_name=${encodeURIComponent(vendorName)}`, {
+          method: 'PATCH',
+          headers: this.getAuthHeaders(),
+          signal: abortController.signal
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP ${response.status}: Failed to award indent`);
+        }
+
+        await response.json();
+      } catch (error: any) {
+        console.error('Error awarding indent:', error);
+        throw error;
+      }
+    }
+  }
+
+  /**
    * GET ANALYTICS TRENDS
    * Production: GET /api/v1/analytics/trends
    */

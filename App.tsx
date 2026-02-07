@@ -317,6 +317,15 @@ const AppContent: React.FC = () => {
           onClose={() => setSelectedIndentForHistory(null)}
           currentUser={currentUser}
           onBidSubmit={handleBidSubmit}
+          onAwardIndent={async (indentId, vendorId, vendorName, amount) => {
+            await ProcurementService.awardIndent(indentId, vendorId, vendorName, amount);
+            // Refresh local state to reflect change immediately
+            setIndents(prev => prev.map(i =>
+              i.id === indentId
+                ? { ...i, status: BidStatus.BID_AWARDED, winnerVendorId: vendorId, vendorName: vendorName, lowestBid: amount }
+                : i
+            ));
+          }}
         />
       )}
 

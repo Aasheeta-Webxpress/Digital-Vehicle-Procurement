@@ -8,9 +8,10 @@ interface BidHistoryModalProps {
   onClose: () => void;
   currentUser: { role: UserRole; id: string; name: string };
   onBidSubmit?: (indentId: string, amount: number) => void;
+  onAwardIndent?: (indentId: string, vendorId: string, vendorName: string, amount: number) => void;
 }
 
-const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose, currentUser, onBidSubmit }) => {
+const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose, currentUser, onBidSubmit, onAwardIndent }) => {
   const [bidAmount, setBidAmount] = useState('');
   const sortedBids = [...bids].sort((a, b) => b.id.localeCompare(a.id)); // Newest first
 
@@ -27,7 +28,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-      
+
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-[#1e40af] px-8 py-6 flex items-center justify-between text-white">
@@ -74,7 +75,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
-                  <input 
+                  <input
                     type="number"
                     placeholder="Enter your lowest quote..."
                     className="w-full pl-8 pr-4 py-4 bg-white border border-blue-200 rounded-2xl text-lg font-black text-slate-900 outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all placeholder:text-slate-300"
@@ -82,7 +83,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                     onChange={(e) => setBidAmount(e.target.value)}
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleModalBid}
                   disabled={!bidAmount}
                   className="px-8 bg-blue-600 text-white text-xs font-black rounded-2xl hover:bg-blue-800 disabled:opacity-50 transition-all active:scale-95 uppercase tracking-widest shadow-xl shadow-blue-900/10 flex items-center gap-2"
@@ -103,7 +104,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
               <Clock className="w-4 h-4 text-blue-600" />
               Real-time Submissions
             </h3>
-            
+
             <div className="relative border-l-2 border-slate-100 ml-4 pl-8 space-y-6">
               {sortedBids.length === 0 ? (
                 <div className="py-12 text-center text-slate-300 italic font-bold uppercase text-xs">
@@ -112,7 +113,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
               ) : (
                 sortedBids.map((bid) => {
                   const isLowest = bid.amount === indent.lowestBid;
-                  
+
                   // Privacy Logic: Mask vendor name if current user is a vendor and it's not them
                   const displayVendorName = currentUser.role === UserRole.VENDOR
                     ? (bid.vendorName === currentUser.name ? bid.vendorName : 'Competitor Vendor')
@@ -122,7 +123,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                     <div key={bid.id} className="relative">
                       {/* Timeline Dot */}
                       <div className={`absolute -left-[41px] top-1 w-5 h-5 rounded-full border-4 border-white shadow-sm transition-all ${isLowest ? 'bg-green-500' : 'bg-slate-200'}`}></div>
-                      
+
                       <div className={`p-5 rounded-2xl border transition-all ${isLowest ? 'bg-green-50/50 border-green-100 shadow-sm' : 'bg-white border-slate-100'}`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
@@ -131,13 +132,13 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                           </div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase">{bid.timestamp}</span>
                         </div>
-                        
+
                         <div className="flex items-end justify-between">
                           <div className="flex items-baseline gap-1 text-slate-900">
                             <span className="text-lg font-black">₹{bid.amount.toLocaleString()}</span>
                             <span className="text-[10px] font-black text-slate-400 uppercase">per load</span>
                           </div>
-                          
+
                           {isLowest ? (
                             <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500 rounded-lg text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
                               <TrendingDown className="w-3 h-3" />
@@ -149,6 +150,26 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                             </div>
                           )}
                         </div>
+                        {/* Award Action for Customer */}
+                        {currentUser.role === UserRole.CUSTOMER &&
+                          (indent.status === BidStatus.BID_INVITED || indent.status === BidStatus.IN_PROGRESS || indent.status === BidStatus.RE_BID) && (
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                onClick={() => {
+                                  if (onAwardIndent) {
+                                    if (window.confirm(`Are you sure you want to award this contract to ${bid.vendorName} for ₹${bid.amount.toLocaleString()}?`)) {
+                                      onAwardIndent(indent.id, bid.vendorId, bid.vendorName, bid.amount);
+                                      onClose();
+                                    }
+                                  }
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white text-[10px] font-black rounded-xl hover:bg-green-700 shadow-lg transition-all uppercase tracking-widest flex items-center gap-2"
+                              >
+                                <TrendingDown className="w-3 h-3" />
+                                Award Contract
+                              </button>
+                            </div>
+                          )}
                       </div>
                     </div>
                   );
@@ -160,7 +181,7 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
 
         {/* Footer */}
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-          <button 
+          <button
             onClick={onClose}
             className="px-8 py-3 bg-[#1e40af] text-white text-xs font-black rounded-2xl hover:bg-blue-800 shadow-lg shadow-blue-900/20 transition-all active:scale-95 uppercase tracking-widest"
           >
