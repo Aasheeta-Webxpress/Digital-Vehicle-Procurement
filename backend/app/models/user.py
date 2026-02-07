@@ -79,8 +79,9 @@ class UserResponse(BaseModel):
     emailId: str
     isActive: bool
     companyCode: int
-    userStatus: str
-    entryDate: str
+
+    userStatus: Optional[str] = "Permanent"
+    entryDate: Optional[datetime] = None
 
 
 class LoginResponse(BaseModel):
