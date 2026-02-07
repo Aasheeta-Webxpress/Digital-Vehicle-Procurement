@@ -1,60 +1,82 @@
 """
-Auth Middleware - Protect endpoints with JWT token verification
+Authentication Middleware - Token verification and role-based access
 """
-from fastapi import HTTPException, status, Depends
+from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional, List
 import logging
 
 from app.services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
+
 security = HTTPBearer()
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Extract and verify JWT token, return user data"""
+async def verify_token(credentials: HTTPAuthorizationCredentials) -> dict:
+    """Verify JWT token"""
     token = credentials.credentials
     
-    # Verify token
-    payload = await auth_service.verify_token(token)
-    if not payload:
+    decoded_token = await auth_service.verify_token(token)
+    if not decoded_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
         )
     
-    # Get user from database
-    user = await auth_service.get_user(payload['sub'])
-    if not user:
+    return decoded_token
+
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials) -> dict:
+    """Get current authenticated user"""
+    decoded_token = await verify_token(credentials)
+    
+    # Fetch user data from Firestore using email (sub)
+    email = decoded_token.get('sub')
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    user_data = await auth_service.get_user_by_email(email)
+    
+    if not user_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
-    if not user.get('isActive'):
+    if not user_data.get('isActive', False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account inactive"
+            detail="User account is deactivated"
         )
     
-    return user
+    return user_data
 
 
-async def require_customer(user: dict = Depends(get_current_user)):
-    """Require Customer user type"""
-    if user.get('userType') != 'Customer':
+async def require_role(user_data: dict, allowed_roles: List[str]):
+    """Check if user has required role"""
+    user_type = user_data.get('userType')
+    
+    if user_type not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only customers can access this"
+            detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
         )
-    return user
 
 
-async def require_vendor(user: dict = Depends(get_current_user)):
-    """Require Vendor user type"""
-    if user.get('userType') != 'Vendor':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only vendors can access this"
-        )
-    return user
+class RoleChecker:
+    """Dependency for role-based access control"""
+    
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = allowed_roles
+    
+    async def __call__(self, credentials: HTTPAuthorizationCredentials):
+        user_data = await get_current_user(credentials)
+        await require_role(user_data, self.allowed_roles)
+        return user_data
+
+
+# Role-based dependencies
+require_customer = RoleChecker(["Customer"])
+require_vendor = RoleChecker(["Vendor"])
+require_any_user = RoleChecker(["Customer", "Vendor"])

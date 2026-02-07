@@ -1,78 +1,121 @@
 """
-Authentication Routes - FIXED for user_master Collection
+Authentication Routes - User registration and login endpoints
 """
 from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials
 import logging
 
-from app.models.user import UserRegistration, UserLogin
+from app.models.user import UserRegistration, UserLogin, LoginResponse
 from app.services.auth_service import auth_service
+from app.middleware.auth import security, get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
-security = HTTPBearer()
+router = APIRouter(
+    prefix="/api/auth",
+    tags=["Authentication"]
+)
 
 
-@router.post("/register", status_code=201)
-async def register(data: UserRegistration):
-    """Register new user"""
-    result = await auth_service.register(data)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(registration: UserRegistration):
+    """
+    Register a new user
+    
+    Flow:
+    1. Validate input data
+    2. Check if email exists
+    3. Generate userId
+    4. Hash password
+    5. Save user profile in user_master collection
+    """
+    result = await auth_service.register_user(registration)
     
     if not result.get('success'):
-        raise HTTPException(status_code=400, detail=result['message'])
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get('message', 'Registration failed')
+        )
     
-    return result
+    return {
+        "success": True,
+        "message": result.get('message'),
+        "data": {
+            "userId": result.get('userId'),
+            "email": result.get('email')
+        }
+    }
 
 
-@router.post("/login")
-async def login(data: UserLogin):
-    """Login user and return JWT token"""
-    result = await auth_service.login(data)
+@router.post("/login", response_model=LoginResponse)
+async def login(login_data: UserLogin):
+    """
+    Login user with email and password
+    
+    Flow:
+    1. Find user by email
+    2. Verify password hash
+    3. Check if isActive = true
+    4. Return user data with JWT token
+    """
+    result = await auth_service.login_user(login_data)
     
     if not result.get('success'):
-        raise HTTPException(status_code=401, detail=result['message'])
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=result.get('message', 'Invalid credentials')
+        )
     
-    return result
+    return LoginResponse(
+        success=True,
+        message=result.get('message'),
+        user=result.get('user'),
+        token=result.get('token')
+    )
 
 
 @router.get("/me")
-async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get current user info"""
-    token = credentials.credentials
-    payload = await auth_service.verify_token(token)
+async def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Get current authenticated user information
     
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    
-    user = await auth_service.get_user(payload['sub'])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    Requires: Bearer token in Authorization header
+    """
+    user_data = await get_current_user(credentials)
     
     return {
         "success": True,
         "user": {
-            "userId": user['userId'],
-            "emailId": user['emailId'],
-            "userType": user['userType'],
-            "mobileNo": user['mobileNo'],
-            "companyCode": user['companyCode'],
-            "isActive": user['isActive']
+            "userId": user_data.get('userId'),
+            "emailId": user_data.get('emailId'),
+            "userType": user_data.get('userType'),
+            "mobileNo": user_data.get('mobileNo'),
+            "companyCode": user_data.get('companyCode'),
+            "userStatus": user_data.get('userStatus'),
+            "isActive": user_data.get('isActive')
         }
     }
 
 
 @router.post("/verify-token")
-async def verify(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify JWT token"""
-    payload = await auth_service.verify_token(credentials.credentials)
+async def verify_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Verify if the provided token is valid
     
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    Requires: Bearer token in Authorization header
+    """
+    decoded_token = await auth_service.verify_token(credentials.credentials)
+    
+    if not decoded_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
     
     return {
         "success": True,
-        "valid": True,
-        "userId": payload.get('userId'),
-        "userType": payload.get('userType')
+        "message": "Token is valid",
+        "email": decoded_token.get('sub'),
+        "userType": decoded_token.get('userType'),
+        "userId": decoded_token.get('userId')
     }
