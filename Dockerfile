@@ -14,7 +14,7 @@ COPY . .
 
 # Build application
 # Note: API URL needs to be set at build time or handled via runtime config
-ENV VITE_API_URL=http://143.110.191.22:8020/api/v1
+ENV VITE_API_BASE=http://143.110.191.22:8020
 RUN npm run build
 
 # Stage 2: Production
