@@ -87,14 +87,24 @@ const AppContent: React.FC = () => {
     });
 
     // Initial fetch for bids to populate active context
+    // Initial fetch for bids to populate active context
     const fetchBids = async () => {
-      const allBids: Bid[] = [];
-      const data = await ProcurementService.getIndents();
-      for (const indent of data) {
-        const indentBids = await ProcurementService.getBids(indent.id);
-        allBids.push(...indentBids);
+      try {
+        const allBids: Bid[] = [];
+        const data = await ProcurementService.getIndents();
+
+        if (Array.isArray(data)) {
+          for (const indent of data) {
+            const indentBids = await ProcurementService.getBids(indent.id);
+            if (Array.isArray(indentBids)) {
+              allBids.push(...indentBids);
+            }
+          }
+        }
+        setBids(allBids);
+      } catch (e) {
+        console.error("Error fetching initial bids:", e);
       }
-      setBids(allBids);
     };
     fetchBids();
 

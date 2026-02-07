@@ -65,7 +65,7 @@ export class ProcurementService {
         }
 
         const data = await response.json();
-        return data;
+        return Array.isArray(data) ? data : [];
       } catch (error: any) {
         if (error.name === 'AbortError') {
           console.log('Fetch indents request cancelled');
@@ -222,7 +222,7 @@ export class ProcurementService {
         }
 
         const data = await response.json();
-        return data;
+        return Array.isArray(data) ? data : [];
       } catch (error: any) {
         if (error.name === 'AbortError') {
           console.log('Fetch bids request cancelled');
