@@ -188,8 +188,35 @@ class DashboardMetrics(BaseModel):
     totalSavings: float
 
 
+class VendorReview(BaseModel):
+    """Vendor review model for post-delivery feedback"""
+    id: str
+    indentId: str
+    vendorId: str
+    customerId: str
+    rating: float = Field(ge=1, le=5)  # 1-5 stars
+    onTime: bool
+    behavior: str  # Good, Average, Poor
+    remarks: Optional[str] = None
+    createdAt: str
+
+
+class BidSuggestion(BaseModel):
+    """Smart bid suggestion model"""
+    currentL1: float
+    minimumBid: float
+    conservative: float
+    competitive: float
+    aggressive: float
+    conservativeWinRate: int  # 0-100
+    competitiveWinRate: int
+    aggressiveWinRate: int
+
+
 __all__ = [
     'BidStatus',
+    'BidMode',
+    'BiddingWindow',
     'Lane',
     'VehicleDetails',
     'Indent',
@@ -199,6 +226,8 @@ __all__ = [
     'BidCreate',
     'Vendor',
     'VendorCreate',
+    'VendorReview',
+    'BidSuggestion',
     'ApiKey',
     'AnalyticsTrends',
     'DashboardMetrics',
@@ -208,3 +237,4 @@ __all__ = [
     'UserResponse',
     'LoginResponse'
 ]
+
