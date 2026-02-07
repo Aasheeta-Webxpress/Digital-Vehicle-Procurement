@@ -114,23 +114,9 @@ const Header: React.FC<HeaderProps> = ({ activeNav, onNavChange, onSearch, curre
             {isUserMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] py-2 animate-in fade-in slide-in-from-top-2">
                 <div className="px-4 py-2 mb-1">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Switch Perspective</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">User Menu</p>
                 </div>
-                <button
-                  onClick={() => handleRoleSelect(UserRole.CUSTOMER)}
-                  className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-xs font-bold transition-colors ${currentUser.role === UserRole.CUSTOMER ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
-                >
-                  Customer Workspace
-                  {currentUser.role === UserRole.CUSTOMER && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => handleRoleSelect(UserRole.VENDOR)}
-                  className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-xs font-bold transition-colors ${currentUser.role === UserRole.VENDOR ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}
-                >
-                  Vendor Portal
-                  {currentUser.role === UserRole.VENDOR && <Check className="w-3.5 h-3.5" />}
-                </button>
-                <div className="h-px bg-gray-100 my-2 mx-2"></div>
+                {/* Role switching removed for production security */}
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"

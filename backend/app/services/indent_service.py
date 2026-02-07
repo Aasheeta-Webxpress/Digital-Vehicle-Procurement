@@ -238,6 +238,36 @@ class IndentService:
                 'updatedAt': datetime.now().isoformat()
             })
             
+            # --- UPDATE VENDOR STATS ---
+            try:
+                # Get vendor reference
+                # Note: Assuming 'vendors' collection exists. If not, this part might need adjustment based on valid collection names.
+                # Use firebase_service to get the collection ref if available, or db.collection directly
+                db = firebase_service.db
+                vendor_ref = db.collection('vendors').document(vendor_id)
+                
+                vendor_doc = vendor_ref.get()
+                if vendor_doc.exists:
+                    # Fetch indent amount to add to revenue
+                    indent_doc = doc_ref.get()
+                    indent_data = indent_doc.to_dict()
+                    # Use lowestBid as the awarded amount, fallback to estimatedPrice if not set
+                    amount = indent_data.get('lowestBid', indent_data.get('estimatedPrice', 0))
+                    
+                    # Update vendor stats atomically using increment
+                    vendor_ref.update({
+                        'totalAwards': firestore.Increment(1),
+                        'totalRevenue': firestore.Increment(amount),
+                        'updatedAt': datetime.now().isoformat()
+                    })
+                    logger.info(f"Updated stats for vendor {vendor_id}")
+                else:
+                    logger.warning(f"Vendor {vendor_id} not found in 'vendors' collection. Stats not updated.")
+            except Exception as v_error:
+                # Log error but don't fail the award process
+                logger.error(f"Failed to update vendor stats: {str(v_error)}")
+            # ---------------------------
+
             # Fetch and return updated document
             updated_doc = doc_ref.get()
             result = updated_doc.to_dict()
