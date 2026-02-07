@@ -65,6 +65,14 @@ class Indent(BaseModel):
     vehicleDetails: Optional[VehicleDetails] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+    
+    # Enterprise Fields
+    bidStartTime: Optional[str] = None
+    bidEndTime: Optional[str] = None
+    bidMode: Optional[str] = "OPEN" # OPEN, INVITE_ONLY
+    invitedVendorIds: Optional[List[str]] = None
+    maxRebidAllowed: Optional[int] = 2
+    revealPriceAfter: Optional[str] = None
 
 
 class IndentCreate(BaseModel):
@@ -79,6 +87,12 @@ class IndentCreate(BaseModel):
     weight: float
     notes: Optional[str] = None
     estimatedPrice: float
+    
+    # Optional config
+    bidStartTime: Optional[str] = None
+    bidEndTime: Optional[str] = None
+    bidMode: Optional[str] = "OPEN"
+    invitedVendorIds: Optional[List[str]] = None
 
 
 class IndentUpdate(BaseModel):
@@ -90,6 +104,13 @@ class IndentUpdate(BaseModel):
     winnerVendorId: Optional[str] = None
     vendorName: Optional[str] = None
     vehicleDetails: Optional[VehicleDetails] = None
+    
+    # Enterprise Updates
+    bidStartTime: Optional[str] = None
+    bidEndTime: Optional[str] = None
+    bidMode: Optional[str] = None
+    invitedVendorIds: Optional[List[str]] = None
+    revealPriceAfter: Optional[str] = None
 
 
 class Bid(BaseModel):

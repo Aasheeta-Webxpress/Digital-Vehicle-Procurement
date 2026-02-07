@@ -122,10 +122,17 @@ class IndentService:
             # Prepare document data
             doc_data = indent_data.dict()
             doc_data['id'] = indent_id
-            doc_data['status'] = BidStatus.BID_INVITED.value
+            
+            # Auto-Status Logic for Bidding Window
+            now = datetime.now().isoformat()
+            if indent_data.bidStartTime and indent_data.bidStartTime > now:
+                doc_data['status'] = BidStatus.BID_INVITED.value # Or "SCHEDULED" if we had that status
+            else:
+                doc_data['status'] = BidStatus.BID_INVITED.value
+                
             doc_data['bidCount'] = 0
-            doc_data['createdAt'] = datetime.now().isoformat()
-            doc_data['updatedAt'] = datetime.now().isoformat()
+            doc_data['createdAt'] = now
+            doc_data['updatedAt'] = now
             
             # Save to Firestore
             collection.document(indent_id).set(doc_data)

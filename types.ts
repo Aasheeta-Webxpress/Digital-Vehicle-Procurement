@@ -46,6 +46,14 @@ export interface Indent {
   bidCount: number;
   winnerVendorId?: string;
   vendorName?: string;
+
+  // Enterprise Bidding Fields
+  bidStartTime?: string; // ISO Date 
+  bidEndTime?: string;   // ISO Date
+  bidMode?: 'OPEN' | 'INVITE_ONLY';
+  invitedVendorIds?: string[]; // IDs of vendors if INVITE_ONLY
+  maxRebidAllowed?: number;    // Limit per vendor
+  revealPriceAfter?: string;   // For Blind -> Semi-Blind Phase (ISO string)
   vehicleDetails?: {
     number: string;
     driverName: string;

@@ -43,7 +43,43 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
     }
   };
 
-  const isBiddable = currentUser.role === UserRole.VENDOR && (indent.status === BidStatus.BID_INVITED || indent.status === BidStatus.IN_PROGRESS || indent.status === BidStatus.RE_BID);
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  // Countdown Timer Logic
+  React.useEffect(() => {
+    if (!indent.bidEndTime) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const end = new Date(indent.bidEndTime!);
+      const diff = end.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft('Bidding Closed');
+        clearInterval(interval);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [indent.bidEndTime]);
+
+  // Check if bidding is allowed based on time
+  const isTimeValid = () => {
+    if (!indent.bidStartTime && !indent.bidEndTime) return true; // Legacy support
+    const now = new Date();
+    if (indent.bidStartTime && new Date(indent.bidStartTime) > now) return false;
+    if (indent.bidEndTime && new Date(indent.bidEndTime) < now) return false;
+    return true;
+  };
+
+  const isBiddable = currentUser.role === UserRole.VENDOR &&
+    (indent.status === BidStatus.BID_INVITED || indent.status === BidStatus.IN_PROGRESS || indent.status === BidStatus.RE_BID) &&
+    isTimeValid();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -57,7 +93,15 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
               <History className="w-6 h-6 text-blue-200" />
               <h2 className="text-xl font-black uppercase tracking-tight">Bid History</h2>
             </div>
-            <p className="text-blue-100/70 text-xs font-bold mt-1 uppercase tracking-wider">{indent.requestId} • {indent.lane.source} to {indent.lane.destination}</p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="text-blue-100/70 text-xs font-bold uppercase tracking-wider">{indent.requestId} • {indent.lane.source} to {indent.lane.destination}</p>
+              {timeLeft && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/30 rounded-lg border border-blue-400/30">
+                  <Clock className="w-3 h-3 text-blue-200" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">{timeLeft}</span>
+                </div>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
             <X className="w-6 h-6" />

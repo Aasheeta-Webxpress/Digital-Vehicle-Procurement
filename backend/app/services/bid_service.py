@@ -142,6 +142,25 @@ class BidService:
             
             indent = indent_snapshot.to_dict()
             
+            # --- BIDDING WINDOW CHECK ---
+            now = datetime.now()
+            
+            # 1. Start Time Check
+            if indent.get('bidStartTime'):
+                start_time = datetime.fromisoformat(indent['bidStartTime'].replace('Z', '+00:00'))
+                # Handle timezone naive/aware comparison by just comparing ISO strings if standard,
+                # or better, converting both to naive if we assume server time consistency.
+                # Simplest: String comparison for ISO format works if TZ is consistent.
+                if now.isoformat() < indent['bidStartTime']:
+                     raise ValueError(f"Bidding has not started yet. Starts at: {indent['bidStartTime']}")
+
+            # 2. End Time Check
+            if indent.get('bidEndTime'):
+                 # Check if time expired
+                 if now.isoformat() > indent['bidEndTime']:
+                      raise ValueError(f"Bidding closed at: {indent['bidEndTime']}")
+            # ----------------------------
+            
             # Check if new bid is lower than current lowest
             current_lowest = indent.get('lowestBid', float('inf'))
             is_new_lowest = bid_data.amount < current_lowest

@@ -109,6 +109,10 @@ export class ProcurementService {
             weight: indent.weight,
             notes: indent.notes,
             estimatedPrice: indent.estimatedPrice,
+            // Enterprise Fields
+            bidStartTime: indent.bidStartTime,
+            bidEndTime: indent.bidEndTime,
+            bidMode: indent.bidMode,
           }),
           signal: abortController.signal
         });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lane, Indent, BidStatus } from '../types';
-import { Save, X, MapPin, Truck, Calendar, History, Upload, FileText, Globe, Code, Download, FileSpreadsheet, Send, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Save, X, MapPin, Truck, Calendar, Clock, History, Upload, FileText, Globe, Code, Download, FileSpreadsheet, Send, ShieldCheck, ExternalLink } from 'lucide-react';
 
 interface IndentFormProps {
   onSave: (indent: Indent) => void;
@@ -25,7 +25,10 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
     estimatedPrice: 0,
     placementDate: '',
     cutoffTime: '',
-    notes: ''
+    notes: '',
+    bidStartTime: '',
+    bidEndTime: '',
+    bidMode: 'OPEN'
   });
 
   // Load from history (pre-fill)
@@ -80,7 +83,11 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
       cutoffTime: formData.cutoffTime ? new Date(formData.cutoffTime).toISOString() : new Date().toISOString(),
       status: BidStatus.BID_INVITED,
       bidCount: 0,
-      notes: formData.notes
+      notes: formData.notes,
+      // Enterprise Fields
+      bidStartTime: formData.bidStartTime ? new Date(formData.bidStartTime).toISOString() : undefined,
+      bidEndTime: formData.bidEndTime ? new Date(formData.bidEndTime).toISOString() : undefined,
+      bidMode: formData.bidMode as 'OPEN' | 'INVITE_ONLY'
     };
     onSave(newIndent);
   };
@@ -121,21 +128,21 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
           </div>
           <div className="hidden md:block h-10 w-px bg-white/10"></div>
           <div className="flex bg-white/10 p-1 rounded-2xl backdrop-blur-md">
-            <button 
+            <button
               onClick={() => setActiveTab('form')}
               className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'form' ? 'bg-white text-blue-600 shadow-lg' : 'text-white/60 hover:text-white'}`}
             >
               <FileText className="w-3.5 h-3.5" />
               Manual Entry
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('upload')}
               className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'upload' ? 'bg-white text-blue-600 shadow-lg' : 'text-white/60 hover:text-white'}`}
             >
               <Upload className="w-3.5 h-3.5" />
               Bulk Upload
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('api')}
               className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'api' ? 'bg-white text-blue-600 shadow-lg' : 'text-white/60 hover:text-white'}`}
             >
@@ -164,7 +171,7 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                   <p className="text-xs font-bold text-slate-700">Load from past successful indent</p>
                 </div>
               </div>
-              <select 
+              <select
                 onChange={(e) => handleLoadHistory(e.target.value)}
                 className="w-full sm:w-auto min-w-[300px] bg-white border border-slate-200 rounded-xl px-4 py-3 text-[11px] font-black text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm uppercase tracking-tight"
               >
@@ -188,13 +195,13 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Source City</label>
                       <div className="relative group">
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
-                        <input 
+                        <input
                           type="text"
                           required
                           placeholder="Origin city"
                           className="w-full pl-11 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase placeholder:text-slate-300"
                           value={formData.fromCity}
-                          onChange={(e) => setFormData({...formData, fromCity: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, fromCity: e.target.value })}
                         />
                       </div>
                     </div>
@@ -202,13 +209,13 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Destination</label>
                       <div className="relative group">
                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-red-500 transition-colors" />
-                        <input 
+                        <input
                           type="text"
                           required
                           placeholder="Terminal city"
                           className="w-full pl-11 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase placeholder:text-slate-300"
                           value={formData.toCity}
-                          onChange={(e) => setFormData({...formData, toCity: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, toCity: e.target.value })}
                         />
                       </div>
                     </div>
@@ -233,10 +240,10 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                   <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Vehicle Type</label>
-                      <select 
+                      <select
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase"
                         value={formData.vehicleType}
-                        onChange={(e) => setFormData({...formData, vehicleType: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
                       >
                         <option>20 FT Container</option>
                         <option>32 FT SXL</option>
@@ -247,12 +254,12 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Capacity (MT)</label>
-                      <input 
+                      <input
                         type="text"
                         placeholder="e.g. 15 MT"
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase placeholder:text-slate-300"
                         value={formData.vehicleCapacity}
-                        onChange={(e) => setFormData({...formData, vehicleCapacity: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, vehicleCapacity: e.target.value })}
                       />
                     </div>
                   </div>
@@ -269,25 +276,25 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                   <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Product Line</label>
-                      <input 
+                      <input
                         type="text"
                         required
                         placeholder="e.g. Retail Goods"
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase"
                         value={formData.product}
-                        onChange={(e) => setFormData({...formData, product: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, product: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Estimated Weight (MT)</label>
-                      <input 
+                      <input
                         type="number"
                         required
                         step="0.1"
                         placeholder="0.0"
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[11px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all"
                         value={formData.weight || ''}
-                        onChange={(e) => setFormData({...formData, weight: parseFloat(e.target.value)})}
+                        onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) })}
                       />
                     </div>
                   </div>
@@ -301,37 +308,96 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                   <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Placement Date</label>
-                      <input 
+                      <input
                         type="datetime-local"
                         required
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase"
                         value={formData.placementDate}
-                        onChange={(e) => setFormData({...formData, placementDate: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, placementDate: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Bidding Close</label>
-                      <input 
+                      <input
                         type="datetime-local"
                         required
                         className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl text-[10px] font-black text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 transition-all uppercase"
                         value={formData.cutoffTime}
-                        onChange={(e) => setFormData({...formData, cutoffTime: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, cutoffTime: e.target.value })}
                       />
                     </div>
-                  </div>
-                  <div className="mt-5 space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Reserve Price (₹)</label>
-                    <div className="relative">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-green-600 font-black text-xs">₹</div>
-                      <input 
-                        type="number"
-                        required
-                        placeholder="Expected target price"
-                        className="w-full pl-10 pr-5 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-black text-green-700 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-50/50 transition-all placeholder:text-slate-300"
-                        value={formData.estimatedPrice || ''}
-                        onChange={(e) => setFormData({...formData, estimatedPrice: parseInt(e.target.value)})}
-                      />
+                    {/* Row 4: Pricing & Mode */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reserve Price (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                          <input
+                            type="number"
+                            required
+                            className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+                            placeholder="0.00"
+                            value={formData.estimatedPrice}
+                            onChange={(e) => setFormData({ ...formData, estimatedPrice: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bid Mode</label>
+                        <select
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all appearance-none"
+                          value={formData.bidMode || 'OPEN'}
+                          onChange={(e) => setFormData({ ...formData, bidMode: e.target.value as 'OPEN' | 'INVITE_ONLY' })}
+                        >
+                          <option value="OPEN">Open Market (All Vendors)</option>
+                          <option value="INVITE_ONLY">Invite Only</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 5: Bidding Window */}
+                    <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Start Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-blue-900 focus:outline-none focus:border-blue-500"
+                          value={formData.bidStartTime || ''}
+                          onChange={(e) => setFormData({ ...formData, bidStartTime: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> End Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-blue-900 focus:outline-none focus:border-blue-500"
+                          value={formData.bidEndTime || ''}
+                          onChange={(e) => setFormData({ ...formData, bidEndTime: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Additional Notes</label>
+                    </div>
+                    <div className="mt-5 space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Reserve Price (₹)</label>
+                      <div className="relative">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-green-600 font-black text-xs">₹</div>
+                        <input
+                          type="number"
+                          required
+                          placeholder="Expected target price"
+                          className="w-full pl-10 pr-5 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-black text-green-700 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-50/50 transition-all placeholder:text-slate-300"
+                          value={formData.estimatedPrice || ''}
+                          onChange={(e) => setFormData({ ...formData, estimatedPrice: parseInt(e.target.value) })}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -339,15 +405,15 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
             </div>
 
             <div className="pt-10 border-t border-slate-100 flex items-center justify-end gap-6">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={onCancel}
                 className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
               >
                 Cancel Draft
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="px-12 py-4 bg-[#1e40af] text-white text-[11px] font-black rounded-[1.25rem] hover:bg-blue-800 shadow-xl shadow-blue-900/20 transition-all active:scale-95 uppercase tracking-widest flex items-center gap-3"
               >
                 <Send className="w-4 h-4" />
@@ -369,7 +435,7 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <button 
+              <button
                 onClick={downloadTemplate}
                 className="group p-8 bg-white border-2 border-dashed border-slate-200 rounded-[2rem] hover:border-blue-400 hover:bg-blue-50/30 transition-all flex flex-col items-center gap-4"
               >
@@ -422,7 +488,7 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
               <div className="flex-1">
                 <p className="text-[11px] font-black text-blue-900 uppercase tracking-widest">Automation Integration</p>
                 <p className="text-xs font-medium text-blue-700/70 mt-1 max-w-xl leading-relaxed">External ERP or TMS systems can push indents directly into the TVS Procurement Engine via secure REST endpoints.</p>
-                <button 
+                <button
                   onClick={onGoToApi}
                   className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 transition-all uppercase tracking-widest"
                 >
@@ -431,7 +497,7 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                 </button>
               </div>
             </div>
-            
+
             <div className="bg-slate-900 rounded-[2rem] p-10 overflow-x-auto shadow-2xl relative">
               <div className="absolute top-6 right-8 flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-red-500"></div>
@@ -439,7 +505,7 @@ const IndentForm: React.FC<IndentFormProps> = ({ onSave, onCancel, history, onGo
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
               </div>
               <pre className="text-blue-300 text-[11px] font-mono leading-loose">
-{`// SECURE POST REQUEST TO TVS GATEWAY
+                {`// SECURE POST REQUEST TO TVS GATEWAY
 POST /api/v1/trips/push
 Headers: { "X-API-KEY": "••••••••••••••••" }
 
@@ -464,9 +530,9 @@ Headers: { "X-API-KEY": "••••••••••••••••" }
 }`}
               </pre>
             </div>
-            
+
             <div className="flex justify-center">
-              <button 
+              <button
                 onClick={() => setActiveTab('form')}
                 className="px-8 py-3 bg-slate-100 text-slate-500 text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-slate-200 transition-all"
               >
