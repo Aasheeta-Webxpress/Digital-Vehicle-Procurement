@@ -49,3 +49,27 @@ async def get_dashboard_metrics():
     except Exception as e:
         logger.error(f"Error fetching dashboard metrics: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/savings")
+async def get_savings_report(start_date: str = None, end_date: str = None):
+    """
+    Get comprehensive savings report
+    
+    Query Parameters:
+    - **start_date**: Optional start date filter (ISO format)
+    - **end_date**: Optional end date filter (ISO format)
+    
+    Returns:
+    - **totalExpected**: Total expected price
+    - **totalActual**: Total actual price (awarded bids)
+    - **totalSavings**: Total savings achieved
+    - **savingsPercent**: Savings percentage
+    - **topVendors**: Top 5 vendors by savings contribution
+    """
+    try:
+        report = await analytics_service.get_savings_report(start_date, end_date)
+        return report
+    except Exception as e:
+        logger.error(f"Error generating savings report: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
