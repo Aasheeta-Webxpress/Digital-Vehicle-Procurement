@@ -79,9 +79,14 @@ class UserResponse(BaseModel):
     emailId: str
     isActive: bool
     companyCode: int
-
     userStatus: Optional[str] = "Permanent"
-    entryDate: Optional[datetime] = None
+    entryDate: Optional[str] = None  # ✅ FIXED: Changed from datetime to str to prevent serialization errors
+    
+    model_config = {
+        "json_encoders": {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    }
 
 
 class LoginResponse(BaseModel):

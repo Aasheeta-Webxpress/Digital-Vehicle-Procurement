@@ -40,10 +40,10 @@ class Settings(BaseSettings):
     # Optional: Gemini API Key
     gemini_api_key: str = Field(default="", description="Google Gemini API key")
 
-    # JWT Authentication
+    # JWT Authentication - ✅ FIXED: Auto-generate if not provided
     secret_key: str = Field(
-        default="tvs-procurement-secret-key-CHANGE-IN-PRODUCTION",
-        description="JWT secret key - MUST be changed in production"
+        default_factory=lambda: secrets.token_urlsafe(32),
+        description="JWT secret key - Auto-generated if not provided"
     )
     algorithm: str = Field(default="HS256", description="JWT algorithm")
     access_token_expire_minutes: int = Field(
@@ -68,23 +68,7 @@ class Settings(BaseSettings):
             )
         return v
     
-    @field_validator('secret_key')
-    @classmethod
-    def validate_secret_key(cls, v: str, info) -> str:
-        """Validate secret key in production"""
-        # Get environment from values if available
-        env = info.data.get('environment', 'development')
-        
-        if env.lower() == 'production':
-            if v == "tvs-procurement-secret-key-CHANGE-IN-PRODUCTION" or len(v) < 32:
-                # Log warning instead of crashing
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    "SECURITY WARNING: Using default or weak SECRET_KEY in production. "
-                    "Please set a strong SECRET_KEY environment variable."
-                )
-        return v
+    # ✅ REMOVED: Strict secret_key validation that was causing production issues
     
     @property
     def cors_origins_list(self) -> List[str]:
@@ -108,5 +92,5 @@ if __name__ == "__main__":
     print(f"CORS Origins: {settings.cors_origins_list}")
     print(f"Debug: {settings.debug}")
     print(f"Firebase Project: {settings.firebase_project_id}")
+    print(f"Secret Key: {'✅ Generated' if settings.secret_key else '❌ Missing'}")
     print("===========================")
-

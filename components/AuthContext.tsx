@@ -44,8 +44,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const storedUser = localStorage.getItem('auth_user');
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+        // Clear invalid data
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+      }
     }
     setIsLoading(false);
   }, []);
@@ -54,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const abortController = new AbortController();
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://143.110.191.22:8020';
       const loginUrl = `${API_BASE_URL}/api/auth/login`;
 
       console.log('Attempting login to:', loginUrl);
@@ -84,12 +92,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Login response data:', data);
 
       if (data.success && data.user && data.token) {
-        // Store token and user info
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-
+        // ✅ FIX: Update React state FIRST to prevent race conditions
         setToken(data.token);
         setUser(data.user);
+        
+        // Then persist to localStorage (async, non-blocking)
+        setTimeout(() => {
+          localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+        }, 0);
 
         console.log('Login successful, user:', data.user);
       } else {
@@ -116,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const abortController = new AbortController();
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://143.110.191.22:8020';
       const registerUrl = `${API_BASE_URL}/api/auth/register`;
 
       console.log('Attempting registration to:', registerUrl);
@@ -173,10 +184,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    // Clear state first
     setToken(null);
     setUser(null);
+    
+    // Then clear localStorage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
   };
 
   const value: AuthContextType = {
