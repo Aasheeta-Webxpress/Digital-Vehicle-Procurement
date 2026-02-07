@@ -12,40 +12,13 @@ import { MOCK_INDENTS } from './constants';
 const USE_MOCK_MODE = false; // Change to false when backend is deployed
 
 // Backend API URL - Update this when deploying backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://143.110.191.22:8020/api/v1';
 
 export class ProcurementService {
   // Local cache for mock mode
   private static storageKey = 'tvs_procurement_data';
 
-  /**
-   * REGISTER USER
-   */
-  static async register(data: any): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.detail || 'Registration failed');
-    }
-    return response.json();
-  }
-
-  /**
-   * LOGIN (Verify Token)
-   */
-  static async verifyToken(idToken: string): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/auth/verify-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken })
-    });
-    if (!response.ok) throw new Error('Token verification failed');
-    return response.json();
-  }
+  // Removed unused register and verifyToken methods
 
   private static getStoredData(): { indents: Indent[], bids: Bid[] } {
     const saved = localStorage.getItem(this.storageKey);
