@@ -368,3 +368,6 @@ _____________________________________________
 
 **Checklist Version**: 1.0  
 **Last Updated**: 2026-02-06
+
+
+ssh root@143.110.191.22 "docker logs tvs-backend --tail 50"
