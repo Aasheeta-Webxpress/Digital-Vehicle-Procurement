@@ -1,8 +1,6 @@
 # ========================================
 # DOCKER COMPOSE - Development & Production
 # ========================================
-version: '3.9'
-
 services:
   # ========== BACKEND SERVICE ==========
   backend:
@@ -26,8 +24,6 @@ services:
     networks:
       - tvs-network
     restart: unless-stopped
-    depends_on:
-      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -58,23 +54,6 @@ services:
       retries: 3
       start_period: 10s
 
-  # ========== REDIS CACHE (Optional) ==========
-  redis:
-    image: redis:7-alpine
-    container_name: tvs-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - tvs-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    volumes:
-      - redis-data:/data
-
   # ========== NGINX REVERSE PROXY ==========
   nginx:
     image: nginx:alpine
@@ -101,6 +80,4 @@ networks:
   tvs-network:
     driver: bridge
 
-volumes:
-  redis-data:
-    driver: local
+# Deleted redis-data volume as Redis is removed
