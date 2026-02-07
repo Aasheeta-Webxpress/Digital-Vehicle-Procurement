@@ -13,7 +13,12 @@ interface BidHistoryModalProps {
 
 const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose, currentUser, onBidSubmit, onAwardIndent }) => {
   const [bidAmount, setBidAmount] = useState('');
-  const sortedBids = [...bids].sort((a, b) => b.id.localeCompare(a.id)); // Newest first
+
+  // Sort by Amount ASC (Lowest First), then by Timestamp DESC (Newest First)
+  const sortedBids = [...bids].sort((a, b) => {
+    if (a.amount !== b.amount) return a.amount - b.amount;
+    return b.timestamp.localeCompare(a.timestamp);
+  });
 
   const handleModalBid = () => {
     const amount = parseInt(bidAmount);
@@ -111,8 +116,8 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                   No bids have been submitted yet.
                 </div>
               ) : (
-                sortedBids.map((bid) => {
-                  const isLowest = bid.amount === indent.lowestBid;
+                sortedBids.map((bid, index) => {
+                  const isLowest = index === 0;
 
                   // Privacy Logic: Mask vendor name if current user is a vendor and it's not them
                   const displayVendorName = currentUser.role === UserRole.VENDOR
@@ -122,31 +127,36 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
                   return (
                     <div key={bid.id} className="relative">
                       {/* Timeline Dot */}
-                      <div className={`absolute -left-[41px] top-1 w-5 h-5 rounded-full border-4 border-white shadow-sm transition-all ${isLowest ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                      <div className={`absolute -left-[41px] top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-4 border-white shadow-md z-10 transition-all ${isLowest ? 'bg-green-500 scale-125' : 'bg-slate-300'}`}></div>
 
-                      <div className={`p-5 rounded-2xl border transition-all ${isLowest ? 'bg-green-50/50 border-green-100 shadow-sm' : 'bg-white border-slate-100'}`}>
+                      <div className={`p-5 rounded-2xl border-2 transition-all ${isLowest ? 'bg-green-50/60 border-green-500 shadow-lg scale-[1.02]' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
+                        {isLowest && (
+                          <div className="absolute -top-3 left-6 px-3 py-1 bg-green-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
+                            🏆 Current Winner (L1)
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <User className={`w-4 h-4 ${isLowest ? 'text-green-600' : 'text-slate-400'}`} />
-                            <span className="text-sm font-black text-slate-900">{displayVendorName}</span>
+                            <span className={`text-sm font-black ${isLowest ? 'text-green-900' : 'text-slate-900'}`}>{displayVendorName}</span>
                           </div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase">{bid.timestamp}</span>
                         </div>
 
                         <div className="flex items-end justify-between">
-                          <div className="flex items-baseline gap-1 text-slate-900">
-                            <span className="text-lg font-black">₹{bid.amount.toLocaleString()}</span>
+                          <div className={`flex items-baseline gap-1 ${isLowest ? 'text-green-700' : 'text-slate-900'}`}>
+                            <span className="text-2xl font-black">₹{bid.amount.toLocaleString()}</span>
                             <span className="text-[10px] font-black text-slate-400 uppercase">per load</span>
                           </div>
 
                           {isLowest ? (
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500 rounded-lg text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-100 rounded-lg text-[10px] font-black text-green-700 uppercase tracking-wider">
                               <TrendingDown className="w-3 h-3" />
-                              L1 Leader
+                              Best Price
                             </div>
                           ) : (
-                            <div className="text-[10px] font-black text-slate-400 uppercase">
-                              +₹{(bid.amount - (indent.lowestBid || 0)).toLocaleString()} from L1
+                            <div className="text-[10px] font-black text-red-400 uppercase bg-red-50 px-2 py-1 rounded-lg">
+                              +₹{(bid.amount - sortedBids[0].amount).toLocaleString()} higher
                             </div>
                           )}
                         </div>
