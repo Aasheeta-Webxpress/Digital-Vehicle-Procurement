@@ -44,24 +44,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const storedUser = localStorage.getItem('auth_user');
 
     if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_token');
-      }
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const API_BASE_URL = 'http://143.110.191.22:8020/api';
-      console.log('Login API URL:', `${API_BASE_URL}/auth/login`);
+    const abortController = new AbortController();
 
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const loginUrl = `${API_BASE_URL}/api/auth/login`;
+
+      console.log('Attempting login to:', loginUrl);
+
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,14 +68,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           username: email,
           password: password,
         }),
+        signal: abortController.signal,
       });
 
+      console.log('Login response status:', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({
+          detail: `HTTP ${response.status}: ${response.statusText}`
+        }));
         throw new Error(error.detail || 'Login failed');
       }
 
       const data = await response.json();
+      console.log('Login response data:', data);
 
       if (data.success && data.user && data.token) {
         // Store token and user info
@@ -86,21 +90,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setToken(data.token);
         setUser(data.user);
+
+        console.log('Login successful, user:', data.user);
       } else {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Login failed: Invalid response format');
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Login request cancelled');
+        return;
+      }
+
       console.error('Login error:', error);
+
+      // Provide user-friendly error messages
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+
       throw error;
     }
   };
 
   const register = async (email: string, password: string, mobileNo: string, userType: 'Customer' | 'Vendor', companyCode: number) => {
-    try {
-      const API_BASE_URL = 'http://143.110.191.22:8020/api';
-      console.log('Register API URL:', `${API_BASE_URL}/auth/register`);
+    const abortController = new AbortController();
 
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+      const registerUrl = `${API_BASE_URL}/api/auth/register`;
+
+      console.log('Attempting registration to:', registerUrl);
+
+      const response = await fetch(registerUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,23 +133,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userType: userType,
           companyCode: companyCode,
         }),
+        signal: abortController.signal,
       });
 
+      console.log('Registration response status:', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({
+          detail: `HTTP ${response.status}: ${response.statusText}`
+        }));
         throw new Error(error.detail || 'Registration failed');
       }
 
       const data = await response.json();
+      console.log('Registration response data:', data);
 
       if (data.success) {
         // After successful registration, automatically log in
+        console.log('Registration successful, logging in...');
         await login(email, password);
       } else {
         throw new Error(data.message || 'Registration failed');
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Registration request cancelled');
+        return;
+      }
+
       console.error('Registration error:', error);
+
+      // Provide user-friendly error messages
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Cannot connect to server. Please check your internet connection.');
+      }
+
       throw error;
     }
   };

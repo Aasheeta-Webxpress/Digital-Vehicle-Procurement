@@ -12,7 +12,8 @@ import { MOCK_INDENTS } from './constants';
 const USE_MOCK_MODE = false; // Change to false when backend is deployed
 
 // Backend API URL - Update this when deploying backend
-const API_BASE_URL = 'http://143.110.191.22:8020/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 export class ProcurementService {
   // Local cache for mock mode
@@ -50,18 +51,29 @@ export class ProcurementService {
       return this.getStoredData().indents;
     } else {
       // Production mode: Call backend API
+      const abortController = new AbortController();
+
       try {
         const response = await fetch(`${API_BASE_URL}/indents`, {
-          headers: this.getAuthHeaders()
+          headers: this.getAuthHeaders(),
+          signal: abortController.signal
         });
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`Failed to fetch indents: HTTP ${response.status}`);
+          return []; // Return empty array instead of throwing
         }
+
         const data = await response.json();
         return data;
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Fetch indents request cancelled');
+          return [];
+        }
+
         console.error('Error fetching indents:', error);
-        throw error;
+        return []; // Return empty array to prevent white screen
       }
     }
   }
@@ -80,6 +92,8 @@ export class ProcurementService {
       return indent;
     } else {
       // Production mode: Call backend API
+      const abortController = new AbortController();
+
       try {
         const response = await fetch(`${API_BASE_URL}/indents`, {
           method: 'POST',
@@ -96,15 +110,22 @@ export class ProcurementService {
             notes: indent.notes,
             estimatedPrice: indent.estimatedPrice,
           }),
+          signal: abortController.signal
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP ${response.status}: Failed to create indent`);
         }
 
         const data = await response.json();
         return data;
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Create indent request cancelled');
+          throw new Error('Request cancelled');
+        }
+
         console.error('Error creating indent:', error);
         throw error;
       }
@@ -142,6 +163,8 @@ export class ProcurementService {
     } else {
       // Production mode: Call backend API
       // Backend will handle indent update via transaction
+      const abortController = new AbortController();
+
       try {
         const response = await fetch(`${API_BASE_URL}/bids`, {
           method: 'POST',
@@ -152,14 +175,21 @@ export class ProcurementService {
             vendorName: bid.vendorName,
             amount: bid.amount,
           }),
+          signal: abortController.signal
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP ${response.status}: Failed to submit bid`);
         }
 
         await response.json();
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Submit bid request cancelled');
+          throw new Error('Request cancelled');
+        }
+
         console.error('Error submitting bid:', error);
         throw error;
       }
@@ -178,18 +208,29 @@ export class ProcurementService {
       return data.bids.filter(b => b.indentId === indentId);
     } else {
       // Production mode: Call backend API
+      const abortController = new AbortController();
+
       try {
         const response = await fetch(`${API_BASE_URL}/bids/indent/${indentId}`, {
-          headers: this.getAuthHeaders()
+          headers: this.getAuthHeaders(),
+          signal: abortController.signal
         });
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`Failed to fetch bids: HTTP ${response.status}`);
+          return []; // Return empty array instead of throwing
         }
+
         const data = await response.json();
         return data;
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Fetch bids request cancelled');
+          return [];
+        }
+
         console.error('Error fetching bids:', error);
-        throw error;
+        return []; // Return empty array to prevent errors
       }
     }
   }
@@ -243,17 +284,42 @@ export class ProcurementService {
       };
     } else {
       // Production mode: Call backend API
+      const abortController = new AbortController();
+
       try {
         const response = await fetch(`${API_BASE_URL}/analytics/trends`, {
-          headers: this.getAuthHeaders()
+          headers: this.getAuthHeaders(),
+          signal: abortController.signal
         });
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error(`Failed to fetch analytics: HTTP ${response.status}`);
+          // Return default values instead of throwing
+          return {
+            avg_reduction: 0,
+            total_savings: 0,
+            volume: 0
+          };
         }
+
         return await response.json();
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Fetch analytics request cancelled');
+          return {
+            avg_reduction: 0,
+            total_savings: 0,
+            volume: 0
+          };
+        }
+
         console.error('Error fetching analytics:', error);
-        throw error;
+        // Return default values to prevent errors
+        return {
+          avg_reduction: 0,
+          total_savings: 0,
+          volume: 0
+        };
       }
     }
   }

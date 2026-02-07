@@ -4,6 +4,7 @@ import { UserRole, BidStatus, Indent, Bid, ViewMode } from './types';
 import { MOCK_VENDORS, TOP_NAV_ITEMS } from './constants';
 import { ProcurementService } from './services';
 import { AuthProvider, useAuth } from './components/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './components/LoginPage';
 import Header from './components/Header';
 import WorkflowBoard from './components/WorkflowBoard';
@@ -19,11 +20,29 @@ import { Calendar, Download, Plus, LayoutGrid, List, Loader2 } from 'lucide-reac
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
 
-  const [currentUser, setCurrentUser] = useState<{ role: UserRole; id: string; name: string }>({
-    role: UserRole.CUSTOMER,
-    id: 'C1',
-    name: 'ABBL Admin'
-  });
+  // Local state for manual role switching (demo feature)
+  const [roleOverride, setRoleOverride] = useState<UserRole | null>(null);
+
+  // Derive currentUser from auth user and local override
+  // This ensures zero-latency updates when auth user changes
+  const currentUser = useMemo(() => {
+    if (!user) {
+      return {
+        role: UserRole.CUSTOMER,
+        id: '',
+        name: ''
+      };
+    }
+
+    const name = (user.emailId || (user as any).email || 'User').split('@')[0];
+    const baseRole = user.userType === 'Customer' ? UserRole.CUSTOMER : UserRole.VENDOR;
+
+    return {
+      role: roleOverride || baseRole,
+      id: user.userId,
+      name: name
+    };
+  }, [user, roleOverride]);
 
   const [indents, setIndents] = useState<Indent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,32 +59,33 @@ const AppContent: React.FC = () => {
     end: new Date().toISOString().split('T')[0]
   });
 
-  // Update currentUser based on logged-in user
-  useEffect(() => {
-    if (user) {
-      // Robust user logic to prevent whitespace/null crashes
-      const email = user.emailId || (user as any).email || '';
-      const name = email ? email.split('@')[0] : 'User';
-
-      setCurrentUser({
-        role: user.userType === 'Customer' ? UserRole.CUSTOMER : UserRole.VENDOR,
-        id: user.userId || 'Guest',
-        name: name
-      });
-    }
-  }, [user]);
-
-  // Show login page if not authenticated
+  // Show loading screen while auth is initializing
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-bold text-gray-500">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  // Show login page if not authenticated
+  if (!isAuthenticated || !user) {
     return <LoginPage />;
+  }
+
+  // Don't render main app until user data is fully loaded
+  if (!currentUser.id) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-bold text-gray-500">Initializing user session...</p>
+        </div>
+      </div>
+    );
   }
 
   // Connect to the Firebase/Python data stream
@@ -77,31 +97,14 @@ const AppContent: React.FC = () => {
     });
 
     // Initial fetch for bids to populate active context
-    // Initial fetch for bids to populate active context
     const fetchBids = async () => {
-      try {
-        const allBids: Bid[] = [];
-        const data = await ProcurementService.getIndents();
-
-        if (Array.isArray(data)) {
-          for (const indent of data) {
-            if (!indent.id) continue;
-            try {
-              const indentBids = await ProcurementService.getBids(indent.id);
-              if (Array.isArray(indentBids)) {
-                allBids.push(...indentBids);
-              }
-            } catch (err) {
-              console.warn(`Failed to fetch bids for indent ${indent.id}`, err);
-            }
-          }
-          setBids(allBids);
-        } else {
-          console.error('getIndents returned non-array:', data);
-        }
-      } catch (error) {
-        console.error('Error in fetchBids:', error);
+      const allBids: Bid[] = [];
+      const data = await ProcurementService.getIndents();
+      for (const indent of data) {
+        const indentBids = await ProcurementService.getBids(indent.id);
+        allBids.push(...indentBids);
       }
+      setBids(allBids);
     };
     fetchBids();
 
@@ -111,7 +114,6 @@ const AppContent: React.FC = () => {
   // Simulator for competitive bids (Now integrated with the service layer)
   useEffect(() => {
     if (activeTab !== 'ACTIVE') return;
-    if (!Array.isArray(indents)) return;
 
     const interval = setInterval(async () => {
       const liveIndents = indents.filter(i =>
@@ -212,11 +214,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleRoleSwitch = (role: UserRole) => {
-    setCurrentUser({
-      role,
-      id: role === UserRole.VENDOR ? 'V1' : 'C1',
-      name: role === UserRole.VENDOR ? 'Safe Logistics India' : user?.emailId.split('@')[0] || 'ABBL Admin'
-    });
+    setRoleOverride(role);
     setShowIndentForm(false);
     setSelectedIndentForHistory(null);
   };
@@ -339,9 +337,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 
