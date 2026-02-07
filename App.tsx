@@ -58,36 +58,18 @@ const AppContent: React.FC = () => {
     end: new Date().toISOString().split('T')[0]
   });
 
-  // Show loading screen while auth is initializing
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-bold text-gray-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login page if not authenticated
-  if (!isAuthenticated || !user) {
-    return <LoginPage />;
-  }
-
-  // ✅ REMOVED: Strict userId validation that was blocking legitimate users
-  // App will now render even if userId has fallback value
-
   // Connect to the Firebase/Python data stream
   useEffect(() => {
+    // Guard: Don't fetch if not authenticated
+    if (!isAuthenticated) return;
+
     setIsLoading(true);
     const unsubscribe = ProcurementService.subscribeToIndents((data) => {
       setIndents(data);
       setIsLoading(false);
     });
 
-    // Initial fetch for bids to populate active context
-    // Initial fetch for bids to populate active context
+    // Initial fetch for bids
     const fetchBids = async () => {
       try {
         const allBids: Bid[] = [];
@@ -109,10 +91,11 @@ const AppContent: React.FC = () => {
     fetchBids();
 
     return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated]);
 
-  // Simulator for competitive bids (Now integrated with the service layer)
+  // Simulator for competitive bids
   useEffect(() => {
+    if (!isAuthenticated) return;
     if (activeTab !== 'ACTIVE') return;
 
     const interval = setInterval(async () => {
@@ -139,7 +122,7 @@ const AppContent: React.FC = () => {
     }, 6000);
 
     return () => clearInterval(interval);
-  }, [indents, currentUser.id, activeTab]);
+  }, [indents, currentUser.id, activeTab, isAuthenticated]);
 
   const handleBidSubmit = async (indentId: string, amount: number) => {
     const newBid: Bid = {
@@ -156,6 +139,9 @@ const AppContent: React.FC = () => {
   };
 
   const filteredData = useMemo(() => {
+    // Return empty if not authenticated
+    if (!isAuthenticated) return [];
+
     let base = indents;
 
     if (currentUser.role === UserRole.VENDOR) {
@@ -187,7 +173,7 @@ const AppContent: React.FC = () => {
       (i.lowestBidVendorName || '').toLowerCase().includes(q) ||
       i.vehicleType.toLowerCase().includes(q)
     );
-  }, [indents, bids, activeTab, currentUser.id, currentUser.role, searchQuery, dateRange]);
+  }, [indents, bids, activeTab, currentUser.id, currentUser.role, searchQuery, dateRange, isAuthenticated]);
 
   const handleExport = () => {
     if (filteredData.length === 0) return;
@@ -299,6 +285,23 @@ const AppContent: React.FC = () => {
       </div>
     );
   };
+
+  // Show loading screen while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-bold text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated || !user) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
