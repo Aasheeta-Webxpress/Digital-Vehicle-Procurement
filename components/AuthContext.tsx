@@ -52,7 +52,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://143.110.191.22:8020/api';
+      const API_BASE_URL = 'http://143.110.191.22:8020/api';
+      console.log('Login API URL:', `${API_BASE_URL}/auth/login`);
 
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -90,7 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (email: string, password: string, mobileNo: string, userType: 'Customer' | 'Vendor', companyCode: number) => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://143.110.191.22:8020/api';
+      const API_BASE_URL = 'http://143.110.191.22:8020/api';
+      console.log('Register API URL:', `${API_BASE_URL}/auth/register`);
 
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',

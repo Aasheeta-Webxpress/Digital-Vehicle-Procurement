@@ -205,17 +205,6 @@ const LoginPage = () => {
                             {isRegisterMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
                         </button>
                     </div>
-
-                    {/* Demo Credentials - Only show in login mode */}
-                    {!isRegisterMode && (
-                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                            <p className="text-xs font-black text-blue-900 mb-2 uppercase tracking-wide">Demo Credentials</p>
-                            <div className="space-y-1 text-xs text-blue-700">
-                                <p className="font-medium">Email: <span className="font-mono">customer@test.com</span></p>
-                                <p className="font-medium">Password: <span className="font-mono">Customer@123</span></p>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer */}
