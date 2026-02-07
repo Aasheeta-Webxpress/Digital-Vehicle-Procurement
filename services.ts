@@ -252,7 +252,7 @@ export class ProcurementService {
       } catch (error) {
         console.error('Error in subscription:', error);
       }
-    }, 15000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }
