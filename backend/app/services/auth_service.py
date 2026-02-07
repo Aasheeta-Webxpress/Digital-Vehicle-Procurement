@@ -192,7 +192,7 @@ class AuthService:
                 emailId=user_data.get('emailId'),
                 isActive=user_data.get('isActive'),
                 companyCode=user_data.get('companyCode'),
-                userStatus=user_data.get('userStatus'),
+                userStatus=user_data.get('userStatus', 'Permanent'),
                 entryDate=user_data.get('entryDate')
             )
             

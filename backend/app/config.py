@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration - NO WILDCARD
     cors_origins: str = Field(
-        default="http://localhost:5173,http://localhost:3000,http://localhost:3020",
+        default="http://localhost:5173,http://localhost:3000,http://localhost:3020,http://143.110.191.22:3020,http://143.110.191.22",
         description="Comma-separated list of allowed CORS origins (NO WILDCARDS)"
     )
     

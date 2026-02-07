@@ -1,373 +1,299 @@
-# 🚀 Deployment Checklist - Server 143.110.191.22
+# 🚀 PRODUCTION DEPLOYMENT CHECKLIST
+## Digital Vehicle Procurement System
 
-## Pre-Deployment
-
-### Local Machine
-- [ ] Code tested locally
-- [ ] Backend running successfully
-- [ ] Frontend running successfully
-- [ ] Firebase connected
-- [ ] All secrets documented
-- [ ] Git repository up to date
-
-### Server Access
-- [ ] SSH access to 143.110.191.22 confirmed
-- [ ] Root or sudo privileges available
-- [ ] Server OS: Ubuntu/Linux confirmed
+**CRITICAL**: This app has CI/CD pipeline - commits go directly to production!
 
 ---
 
-## Server Setup
+## ✅ PRE-COMMIT CHECKLIST
 
-### System Packages
-- [ ] System updated (`sudo apt update && upgrade`)
-- [ ] Node.js 18+ installed
-- [ ] Python 3.12 installed
-- [ ] Git installed
-- [ ] PM2 installed globally
-- [ ] Nginx installed (optional)
-- [ ] Build tools installed
+### 1. Environment Variables ✅
+- [x] `.env` files are in `.gitignore`
+- [x] `.env.example` files are committed
+- [x] No hardcoded secrets in code
+- [x] Production `.env` files configured on server
+- [x] All team members have local `.env` files
 
-### Firewall Configuration
-- [ ] UFW enabled
-- [ ] Port 22 (SSH) allowed
-- [ ] Port 80 (HTTP) allowed
-- [ ] Port 443 (HTTPS) allowed
-- [ ] Port 3000 (Frontend) allowed
-- [ ] Port 8000 (Backend) allowed
+### 2. Security ✅
+- [x] No wildcard (*) in CORS origins
+- [x] JWT secret key is strong (32+ characters)
+- [x] Firebase credentials NOT in git
+- [x] All sensitive data in environment variables
+- [x] Production validation in config.py
 
-### Port Verification
-- [ ] Port 3000 available
-- [ ] Port 8000 available
-- [ ] No conflicts with existing services
+### 3. Code Quality ✅
+- [x] Error boundaries implemented
+- [x] Proper error handling in all API calls
+- [x] No race conditions in authentication
+- [x] Request cancellation (AbortController) added
+- [x] TypeScript errors fixed
+- [x] No console.errors in production code
 
----
-
-## Application Deployment
-
-### Repository Setup
-- [ ] Repository cloned to `/var/www/Digital-Vehicle-Procurement`
-- [ ] Correct branch checked out (main)
-- [ ] Permissions set correctly
-
-### Backend Setup
-- [ ] Virtual environment created (`python3.12 -m venv venv`)
-- [ ] Dependencies installed (`pip install -r requirements.txt`)
-- [ ] `serviceAccountKey.json` uploaded
-- [ ] `.env` file created from `.env.example`
-- [ ] Firebase project ID configured
-- [ ] Environment set to `production`
-- [ ] Debug mode set to `False`
-
-### Frontend Setup
-- [ ] Dependencies installed (`npm install`)
-- [ ] `.env.production` created
-- [ ] API URL configured (`VITE_API_URL`)
-- [ ] `services.ts` updated (`USE_MOCK_MODE = false`)
-- [ ] Production build created (`npm run build`)
-- [ ] `serve` package installed globally
+### 4. API Configuration ✅
+- [x] Consistent API URLs using environment variables
+- [x] All endpoints use proper base URLs
+- [x] CORS configured correctly
+- [x] Authentication headers included
 
 ---
 
-## PM2 Configuration
+## 🔒 SECURITY VERIFICATION
 
-### Backend Service
-- [ ] PM2 ecosystem file created (`ecosystem.config.js`)
-- [ ] Backend started with PM2
-- [ ] Service named `tvs-backend`
-- [ ] Auto-restart enabled
-- [ ] Logs accessible
-
-### Frontend Service
-- [ ] PM2 ecosystem file created (`ecosystem.frontend.config.js`)
-- [ ] Frontend started with PM2
-- [ ] Service named `tvs-frontend`
-- [ ] Auto-restart enabled
-- [ ] Logs accessible
-
-### PM2 Management
-- [ ] PM2 process list saved (`pm2 save`)
-- [ ] PM2 startup configured (`pm2 startup`)
-- [ ] Startup command executed
-- [ ] Both services show as `online`
-
----
-
-## Nginx Configuration (Optional)
-
-### Setup
-- [ ] Nginx configuration file created
-- [ ] Frontend proxy configured (port 3000)
-- [ ] Backend proxy configured (port 8000)
-- [ ] Configuration symlinked to sites-enabled
-- [ ] Default site disabled
-- [ ] Configuration tested (`nginx -t`)
-- [ ] Nginx restarted
-- [ ] Nginx enabled on boot
-
----
-
-## CI/CD Pipeline
-
-### SSH Keys
-- [ ] SSH key pair generated
-- [ ] Public key added to server `~/.ssh/authorized_keys`
-- [ ] Private key added to GitHub Secrets (`SSH_PRIVATE_KEY`)
-- [ ] SSH connection tested
-
-### GitHub Secrets
-- [ ] `SSH_PRIVATE_KEY` added
-- [ ] `SERVER_HOST` added (143.110.191.22)
-- [ ] `SERVER_USER` added (root or username)
-- [ ] `SERVER_PORT` added (22)
-
-### Workflow Files
-- [ ] `.github/workflows/` directory created
-- [ ] `deploy.yml` workflow file created
-- [ ] Workflow syntax validated
-- [ ] Deploy script created on server (`/var/www/deploy.sh`)
-- [ ] Deploy script executable (`chmod +x`)
-
----
-
-## Testing
-
-### Backend Testing
-- [ ] Health endpoint accessible (`/health`)
-- [ ] API docs accessible (`/docs`)
-- [ ] Can fetch indents (`/api/v1/indents`)
-- [ ] Can submit bids (`/api/v1/bids`)
-- [ ] Firebase connection confirmed
-- [ ] No errors in PM2 logs
-
-### Frontend Testing
-- [ ] Homepage loads
-- [ ] Dashboard displays
-- [ ] Can create indents
-- [ ] Can submit bids
-- [ ] API calls working
-- [ ] No console errors
-
-### Integration Testing
-- [ ] Frontend can communicate with backend
-- [ ] Data saves to Firebase
-- [ ] Real-time updates working
-- [ ] Analytics displaying correctly
-
-### URL Testing
-**Without Nginx:**
-- [ ] http://143.110.191.22:3000 (Frontend)
-- [ ] http://143.110.191.22:8000/docs (API Docs)
-- [ ] http://143.110.191.22:8000/health (Health)
-
-**With Nginx:**
-- [ ] http://143.110.191.22 (Frontend)
-- [ ] http://143.110.191.22/docs (API Docs)
-- [ ] http://143.110.191.22/api/v1/indents (API)
-- [ ] http://143.110.191.22/health (Health)
-
----
-
-## Security
-
-### Secrets Management
-- [ ] `.env` files not in Git
-- [ ] `serviceAccountKey.json` not in Git
-- [ ] `.gitignore` properly configured
-- [ ] File permissions set (600 for secrets)
-- [ ] No secrets in logs
-
-### Access Control
-- [ ] SSH key authentication only
-- [ ] Password authentication disabled
-- [ ] Root login disabled (recommended)
-- [ ] Firewall active and configured
-- [ ] Only necessary ports open
-
----
-
-## Monitoring
-
-### Logs Setup
-- [ ] PM2 logs accessible
-- [ ] Nginx logs accessible
-- [ ] Log rotation configured
-- [ ] Error monitoring setup
-
-### Health Checks
-- [ ] Backend health endpoint working
-- [ ] PM2 monitoring active
-- [ ] Uptime monitoring configured (optional)
-
----
-
-## Post-Deployment
-
-### Verification
-- [ ] All services running (`pm2 list`)
-- [ ] No errors in logs
-- [ ] URLs accessible from external network
-- [ ] Firebase data syncing
-- [ ] CI/CD pipeline tested
-
-### Documentation
-- [ ] Deployment documented
-- [ ] Access credentials stored securely
-- [ ] Team notified
-- [ ] Rollback procedure documented
-
-### Backup
-- [ ] Database backup configured
-- [ ] Code repository backed up
-- [ ] Secrets backed up securely
-- [ ] Recovery procedure tested
-
----
-
-## CI/CD Testing
-
-### First Deployment
-- [ ] Make test commit
-- [ ] Push to main branch
-- [ ] GitHub Actions workflow triggered
-- [ ] Workflow completes successfully
-- [ ] Services restarted automatically
-- [ ] Changes reflected on server
-
-### Rollback Test
-- [ ] Rollback procedure documented
-- [ ] Test rollback to previous version
-- [ ] Verify rollback works
-- [ ] Document rollback time
-
----
-
-## Performance
-
-### Optimization
-- [ ] Frontend build optimized
-- [ ] Backend running in production mode
-- [ ] Gzip compression enabled (Nginx)
-- [ ] Static file caching configured
-- [ ] Database queries optimized
-
-### Load Testing (Optional)
-- [ ] Load testing performed
-- [ ] Performance benchmarks recorded
-- [ ] Bottlenecks identified
-- [ ] Scaling plan documented
-
----
-
-## Final Checks
-
-### Functionality
-- [ ] All features working
-- [ ] No broken links
-- [ ] Forms submitting correctly
-- [ ] Data persisting correctly
-- [ ] Real-time updates working
-
-### User Experience
-- [ ] Page load times acceptable
-- [ ] No UI glitches
-- [ ] Mobile responsive (if applicable)
-- [ ] Error messages user-friendly
-
-### Production Ready
-- [ ] Debug mode OFF
-- [ ] Proper error handling
-- [ ] Logging configured
-- [ ] Monitoring active
-- [ ] Backup strategy in place
-
----
-
-## Sign-Off
-
-### Deployment Team
-- [ ] Developer approval
-- [ ] QA approval
-- [ ] DevOps approval
-- [ ] Stakeholder notification
-
-### Documentation
-- [ ] README updated
-- [ ] API documentation current
-- [ ] Deployment guide complete
-- [ ] Troubleshooting guide available
-
----
-
-## Emergency Contacts
-
-**Server Issues:**
-- Server Admin: [Contact]
-- Hosting Provider: [Contact]
-
-**Application Issues:**
-- Backend Developer: [Contact]
-- Frontend Developer: [Contact]
-- Database Admin: [Contact]
-
-**Firebase Issues:**
-- Firebase Console: https://console.firebase.google.com/
-- Firebase Support: [Contact]
-
----
-
-## Quick Commands
-
+### Before Committing:
 ```bash
-# SSH into server
-ssh root@143.110.191.22
+# 1. Check for secrets in code
+git diff | grep -i "secret\|password\|key\|token"
 
-# Check services
-pm2 list
-pm2 logs
+# 2. Verify .env is ignored
+git status | grep ".env"
+# Should show NOTHING or only .env.example
 
-# Restart services
-pm2 restart tvs-backend
-pm2 restart tvs-frontend
+# 3. Check for Firebase credentials
+git status | grep "serviceAccountKey"
+# Should show NOTHING
+```
 
-# View logs
-pm2 logs tvs-backend --lines 100
-pm2 logs tvs-frontend --lines 100
+### Production Environment Variables Required:
 
-# Check Nginx
-sudo systemctl status nginx
-sudo nginx -t
+#### Frontend (.env):
+```env
+VITE_API_URL=https://your-production-api.com/api/v1
+VITE_API_BASE=https://your-production-api.com
+VITE_ENV=production
+VITE_USE_MOCK_MODE=false
+```
 
-# Update application
-cd /var/www/Digital-Vehicle-Procurement
-git pull origin main
-/var/www/deploy.sh
-
-# Check firewall
-sudo ufw status
-
-# Check ports
-sudo netstat -tulpn | grep -E ':(3000|8000|80)'
+#### Backend (.env):
+```env
+FIREBASE_PROJECT_ID=your-production-project-id
+FIREBASE_CREDENTIALS_PATH=./serviceAccountKey.json
+API_HOST=0.0.0.0
+API_PORT=8020
+CORS_ORIGINS=https://your-production-frontend.com,https://www.your-production-frontend.com
+ENVIRONMENT=production
+DEBUG=False
+SECRET_KEY=<STRONG-32+-CHARACTER-SECRET-KEY>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
 ---
 
-## Deployment Status
+## 📋 DEPLOYMENT STEPS
 
-**Date**: _______________  
-**Deployed By**: _______________  
-**Version**: _______________  
-**Status**: ⬜ Ready ⬜ In Progress ⬜ Complete ⬜ Failed
+### Step 1: Verify Local Build
+```bash
+# Frontend
+npm run build
+# Should complete without errors
 
-**Notes**:
-_____________________________________________
-_____________________________________________
-_____________________________________________
+# Backend
+cd backend
+python -m pytest  # If you have tests
+```
+
+### Step 2: Check Git Status
+```bash
+git status
+# Verify:
+# - .env files are NOT listed
+# - serviceAccountKey.json is NOT listed
+# - Only intended files are staged
+```
+
+### Step 3: Review Changes
+```bash
+git diff --cached
+# Manually review EVERY change
+# Look for:
+# - Hardcoded secrets
+# - Debug code
+# - Console.logs
+# - Commented code
+```
+
+### Step 4: Commit Safely
+```bash
+git add <specific-files>
+# DO NOT use: git add .
+# DO NOT use: git add -A
+
+git commit -m "fix: implement critical security and stability fixes
+
+- Add error boundaries to prevent white screens
+- Fix authentication race conditions
+- Implement proper error handling with AbortController
+- Remove hardcoded API URLs, use environment variables
+- Remove wildcard from CORS configuration
+- Add production validation for secrets
+- Fix API endpoint consistency
+
+BREAKING CHANGES: Requires .env configuration
+"
+```
+
+### Step 5: Pre-Push Verification
+```bash
+# Final check before push
+git log -1 --stat
+# Verify the commit looks correct
+
+# Check remote
+git remote -v
+# Verify you're pushing to correct repository
+```
+
+### Step 6: Push to Production
+```bash
+git push origin main
+# Or whatever your production branch is
+```
 
 ---
 
-**Checklist Version**: 1.0  
-**Last Updated**: 2026-02-06
+## ⚠️ CRITICAL WARNINGS
 
+### DO NOT COMMIT:
+- ❌ `.env` files
+- ❌ `serviceAccountKey.json`
+- ❌ `node_modules/`
+- ❌ `backend/venv/`
+- ❌ Any file with secrets/passwords
+- ❌ Debug code or console.logs
+- ❌ Commented-out code blocks
 
-ssh root@143.110.191.22 "docker logs tvs-backend --tail 50"
+### MUST HAVE ON PRODUCTION SERVER:
+- ✅ `.env` file with production values
+- ✅ `serviceAccountKey.json` (uploaded separately, NOT via git)
+- ✅ Strong SECRET_KEY (32+ characters)
+- ✅ Correct CORS origins (no wildcards)
+- ✅ HTTPS enabled
+- ✅ Firewall configured
+- ✅ SSL certificates installed
+
+---
+
+## 🧪 POST-DEPLOYMENT TESTING
+
+### After deployment, test:
+
+1. **Login Flow**
+   - [ ] Can access login page
+   - [ ] Can login with valid credentials
+   - [ ] Invalid credentials show error
+   - [ ] Redirects to dashboard after login
+
+2. **Error Handling**
+   - [ ] No white screens on errors
+   - [ ] Error messages are user-friendly
+   - [ ] Error boundary catches React errors
+
+3. **API Calls**
+   - [ ] Indents load correctly
+   - [ ] Can create new indent
+   - [ ] Can submit bid
+   - [ ] Real-time updates work
+
+4. **Security**
+   - [ ] No CORS errors
+   - [ ] JWT tokens work
+   - [ ] Unauthorized access blocked
+   - [ ] No secrets exposed in network tab
+
+---
+
+## 🔧 ROLLBACK PLAN
+
+If deployment fails:
+
+```bash
+# 1. Revert to previous commit
+git revert HEAD
+git push origin main
+
+# 2. Or reset to last working commit
+git reset --hard <last-working-commit-hash>
+git push origin main --force
+
+# 3. Check server logs
+# Backend: Check uvicorn logs
+# Frontend: Check browser console
+```
+
+---
+
+## 📊 FILES CHANGED IN THIS FIX
+
+### Created:
+- `.env` (frontend) - NOT COMMITTED
+- `.env.example` (frontend) - COMMITTED
+- `backend/.env` - NOT COMMITTED
+- `backend/.env.example` - COMMITTED
+- `.gitignore` - COMMITTED
+- `components/ErrorBoundary.tsx` - COMMITTED
+- `FIXES_IMPLEMENTED.md` - COMMITTED
+- `DEPLOYMENT_CHECKLIST.md` - COMMITTED
+
+### Modified:
+- `components/AuthContext.tsx` - COMMITTED
+- `services.ts` - COMMITTED
+- `App.tsx` - COMMITTED
+- `backend/app/config.py` - COMMITTED
+
+---
+
+## ✅ FINAL VERIFICATION
+
+Before pushing, answer YES to all:
+
+- [ ] I have reviewed ALL changes in `git diff --cached`
+- [ ] No `.env` files are being committed
+- [ ] No `serviceAccountKey.json` is being committed
+- [ ] All hardcoded secrets have been removed
+- [ ] CORS does not contain wildcards (*)
+- [ ] Production `.env` files are configured on server
+- [ ] I have tested the build locally
+- [ ] Error boundaries are working
+- [ ] Authentication flow works correctly
+- [ ] API calls use environment variables
+- [ ] I understand this goes directly to production
+
+---
+
+## 🆘 EMERGENCY CONTACTS
+
+If deployment breaks production:
+
+1. **Immediate**: Revert the commit (see Rollback Plan)
+2. **Check**: Server logs for errors
+3. **Verify**: Environment variables on server
+4. **Test**: Each component individually
+5. **Document**: What went wrong for future reference
+
+---
+
+## 📝 COMMIT MESSAGE TEMPLATE
+
+```
+fix: <short description>
+
+<detailed description of what was fixed>
+
+Changes:
+- <change 1>
+- <change 2>
+- <change 3>
+
+Testing:
+- <test 1>
+- <test 2>
+
+BREAKING CHANGES: <if any>
+```
+
+---
+
+**REMEMBER**: This goes DIRECTLY to production. Triple-check everything!
+
+**Last Updated**: February 7, 2026  
+**Status**: ✅ READY FOR PRODUCTION DEPLOYMENT
