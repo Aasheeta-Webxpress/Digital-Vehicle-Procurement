@@ -146,6 +146,16 @@ class BidService:
             current_lowest = indent.get('lowestBid', float('inf'))
             is_new_lowest = bid_data.amount < current_lowest
             
+            # --- MINIMUM DECREMENT RULE ---
+            # If there is already a lowest bid, the new bid must be at least 200 lower
+            if current_lowest != float('inf'):
+                if bid_data.amount >= current_lowest:
+                     raise ValueError(f"Bid amount {bid_data.amount} must be lower than current lowest bid {current_lowest}")
+                
+                if bid_data.amount > (current_lowest - 200):
+                     raise ValueError(f"Bid does not meet minimum decrement rule. Must be at least 200 lower than {current_lowest}")
+            # ------------------------------
+            
             # Prepare indent updates
             indent_updates = {
                 'bidCount': indent.get('bidCount', 0) + 1,
