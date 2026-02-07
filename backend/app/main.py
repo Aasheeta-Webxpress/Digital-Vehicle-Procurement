@@ -11,7 +11,6 @@ import time
 from app.config import settings
 from app.routes import indents, bids, analytics, auth
 from app.services.firebase_service import firebase_service
-from app.services.redis_service import redis_service
 
 # Configure logging
 logging.basicConfig(
@@ -75,20 +74,12 @@ async def startup_event():
     logger.info(f"Debug Mode: {settings.debug}")
     logger.info(f"CORS Origins: {settings.cors_origins_list}")
     
-    
     # Check Firebase connection
     if firebase_service.is_connected:
         logger.info("✅ Firebase connected successfully")
     else:
         logger.warning("⚠️  Firebase not connected - Running in mock mode")
         logger.warning("   Please configure Firebase credentials to enable database")
-        
-    # Check Redis connection
-    await redis_service.connect()
-    if redis_service.connected:
-        logger.info("✅ Redis connected successfully")
-    else:
-        logger.warning("⚠️  Redis connection failed")
     
     logger.info("=" * 60)
 
@@ -97,7 +88,6 @@ async def startup_event():
 async def shutdown_event():
     """Run on application shutdown"""
     logger.info("TVS Procurement API Shutting down...")
-    await redis_service.close()
 
 
 @app.get("/", tags=["root"])
@@ -119,7 +109,6 @@ async def health_check():
     return {
         "status": "healthy",
         "firebase_connected": firebase_service.is_connected,
-        "redis_connected": redis_service.connected,
         "environment": settings.environment
     }
 

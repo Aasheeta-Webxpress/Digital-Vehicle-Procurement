@@ -51,9 +51,6 @@ class Settings(BaseSettings):
         description="JWT token expiration time in minutes"
     )
     
-    # Redis Configuration
-    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
-    
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
