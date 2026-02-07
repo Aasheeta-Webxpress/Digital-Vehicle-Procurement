@@ -18,6 +18,14 @@ export class ProcurementService {
   // Local cache for mock mode
   private static storageKey = 'tvs_procurement_data';
 
+  private static getAuthHeaders(): HeadersInit {
+    const token = localStorage.getItem('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
+
   // Removed unused register and verifyToken methods
 
   private static getStoredData(): { indents: Indent[], bids: Bid[] } {
@@ -43,7 +51,9 @@ export class ProcurementService {
     } else {
       // Production mode: Call backend API
       try {
-        const response = await fetch(`${API_BASE_URL}/indents`);
+        const response = await fetch(`${API_BASE_URL}/indents`, {
+          headers: this.getAuthHeaders()
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -73,9 +83,7 @@ export class ProcurementService {
       try {
         const response = await fetch(`${API_BASE_URL}/indents`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: this.getAuthHeaders(),
           body: JSON.stringify({
             requestId: indent.requestId,
             lane: indent.lane,
@@ -137,9 +145,7 @@ export class ProcurementService {
       try {
         const response = await fetch(`${API_BASE_URL}/bids`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: this.getAuthHeaders(),
           body: JSON.stringify({
             indentId: bid.indentId,
             vendorId: bid.vendorId,
@@ -173,7 +179,9 @@ export class ProcurementService {
     } else {
       // Production mode: Call backend API
       try {
-        const response = await fetch(`${API_BASE_URL}/bids/indent/${indentId}`);
+        const response = await fetch(`${API_BASE_URL}/bids/indent/${indentId}`, {
+          headers: this.getAuthHeaders()
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -236,7 +244,9 @@ export class ProcurementService {
     } else {
       // Production mode: Call backend API
       try {
-        const response = await fetch(`${API_BASE_URL}/analytics/trends`);
+        const response = await fetch(`${API_BASE_URL}/analytics/trends`, {
+          headers: this.getAuthHeaders()
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

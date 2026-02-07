@@ -172,25 +172,6 @@ const LoginPage = () => {
                                         <option value="Vendor">Vendor</option>
                                     </select>
                                 </div>
-
-                                {/* Company Code */}
-                                <div>
-                                    <label className="block text-xs font-black text-gray-700 mb-2 uppercase tracking-wide">
-                                        Company Code
-                                    </label>
-                                    <div className="relative">
-                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                        <input
-                                            type="number"
-                                            value={companyCode}
-                                            onChange={(e) => setCompanyCode(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-sm font-medium"
-                                            placeholder="12"
-                                            required
-                                            disabled={isLoading}
-                                        />
-                                    </div>
-                                </div>
                             </>
                         )}
 
