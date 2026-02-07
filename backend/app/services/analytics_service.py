@@ -4,6 +4,7 @@ Analytics Service - Business logic for analytics and reporting
 import logging
 from typing import Dict, Any
 from app.services.firebase_service import firebase_service
+from app.services.redis_service import redis_service
 from app.models import BidStatus
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,11 @@ class AnalyticsService:
             }
         """
         try:
+            # Try cache first
+            cached = await redis_service.get_json('procurement_trends')
+            if cached:
+                return cached
+
             if not self.db:
                 return {"avg_reduction": 0.0, "total_savings": 0.0, "volume": 0}
 
@@ -56,11 +62,15 @@ class AnalyticsService:
             if total_estimated_price > 0:
                 avg_reduction = (total_savings / total_estimated_price) * 100
 
-            return {
+            result = {
                 "avg_reduction": round(avg_reduction, 2),
                 "total_savings": round(total_savings, 2),
                 "volume": volume
             }
+            
+            # Cache result for 5 minutes
+            await redis_service.set_json('procurement_trends', result, ttl=300)
+            return result
 
         except Exception as e:
             logger.error(f"Error calculating procurement trends: {str(e)}")
@@ -81,6 +91,11 @@ class AnalyticsService:
             }
         """
         try:
+            # Try cache first
+            cached = await redis_service.get_json('dashboard_metrics')
+            if cached:
+                return cached
+
             if not self.db:
                 return {
                     "totalIndents": 0, "activeIndents": 0, "closedIndents": 0, 
@@ -130,7 +145,7 @@ class AnalyticsService:
             if total_estimated_price > 0:
                 avg_reduction = (total_savings / total_estimated_price) * 100
 
-            return {
+            result = {
                 "totalIndents": total_indents,
                 "activeIndents": active_indents,
                 "closedIndents": closed_indents,
@@ -139,6 +154,10 @@ class AnalyticsService:
                 "avgReduction": round(avg_reduction, 2),
                 "totalSavings": round(total_savings, 2)
             }
+            
+            # Cache result for 5 minutes
+            await redis_service.set_json('dashboard_metrics', result, ttl=300)
+            return result
 
         except Exception as e:
             logger.error(f"Error calculating dashboard metrics: {str(e)}")
