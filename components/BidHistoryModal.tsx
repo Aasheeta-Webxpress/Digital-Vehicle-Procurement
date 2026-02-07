@@ -26,13 +26,14 @@ const BidHistoryModal: React.FC<BidHistoryModalProps> = ({ indent, bids, onClose
 
     // Minimum Decrement Rule: New Bid must be at least ₹200 lower than current L1
     const currentLowest = indent.lowestBid || indent.estimatedPrice;
+
     if (amount >= currentLowest) {
-      alert(`Invalid Bid: Your bid must be lower than the current lowest bid (₹${currentLowest.toLocaleString()}).`);
+      alert(`Bid Not Acceptable: You must enter an amount lower than the current L1 offer (₹${currentLowest.toLocaleString()}).`);
       return;
     }
 
     if (amount > (currentLowest - 200)) {
-      alert(`Minimum Decrement Rule: You must lower the bid by at least ₹200.\n\nMaximum allowed bid is ₹${(currentLowest - 200).toLocaleString()}.`);
+      alert(`Error: Please enter an amount at least ₹200 lower than L1.\n\nMaximum allowed bid: ₹${(currentLowest - 200).toLocaleString()}`);
       return;
     }
 
