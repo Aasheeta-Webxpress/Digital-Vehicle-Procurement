@@ -43,10 +43,14 @@ const AppContent: React.FC = () => {
   // Update currentUser based on logged-in user
   useEffect(() => {
     if (user) {
+      // Robust user logic to prevent whitespace/null crashes
+      const email = user.emailId || (user as any).email || '';
+      const name = email ? email.split('@')[0] : 'User';
+
       setCurrentUser({
         role: user.userType === 'Customer' ? UserRole.CUSTOMER : UserRole.VENDOR,
-        id: user.userId,
-        name: user.emailId.split('@')[0]
+        id: user.userId || 'Guest',
+        name: name
       });
     }
   }, [user]);
@@ -73,14 +77,31 @@ const AppContent: React.FC = () => {
     });
 
     // Initial fetch for bids to populate active context
+    // Initial fetch for bids to populate active context
     const fetchBids = async () => {
-      const allBids: Bid[] = [];
-      const data = await ProcurementService.getIndents();
-      for (const indent of data) {
-        const indentBids = await ProcurementService.getBids(indent.id);
-        allBids.push(...indentBids);
+      try {
+        const allBids: Bid[] = [];
+        const data = await ProcurementService.getIndents();
+
+        if (Array.isArray(data)) {
+          for (const indent of data) {
+            if (!indent.id) continue;
+            try {
+              const indentBids = await ProcurementService.getBids(indent.id);
+              if (Array.isArray(indentBids)) {
+                allBids.push(...indentBids);
+              }
+            } catch (err) {
+              console.warn(`Failed to fetch bids for indent ${indent.id}`, err);
+            }
+          }
+          setBids(allBids);
+        } else {
+          console.error('getIndents returned non-array:', data);
+        }
+      } catch (error) {
+        console.error('Error in fetchBids:', error);
       }
-      setBids(allBids);
     };
     fetchBids();
 
@@ -90,6 +111,7 @@ const AppContent: React.FC = () => {
   // Simulator for competitive bids (Now integrated with the service layer)
   useEffect(() => {
     if (activeTab !== 'ACTIVE') return;
+    if (!Array.isArray(indents)) return;
 
     const interval = setInterval(async () => {
       const liveIndents = indents.filter(i =>

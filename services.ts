@@ -12,7 +12,7 @@ import { MOCK_INDENTS } from './constants';
 const USE_MOCK_MODE = false; // Change to false when backend is deployed
 
 // Backend API URL - Update this when deploying backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://143.110.191.22:8020/api/v1';
+const API_BASE_URL = 'http://143.110.191.22:8020/api/v1';
 
 export class ProcurementService {
   // Local cache for mock mode
