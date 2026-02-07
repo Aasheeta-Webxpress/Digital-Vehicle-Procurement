@@ -44,22 +44,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const storedUser = localStorage.getItem('auth_user');
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    const abortController = new AbortController();
-
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
-      const loginUrl = `${API_BASE_URL}/api/auth/login`;
+      const API_BASE_URL = 'http://143.110.191.22:8020/api';
+      console.log('Login API URL:', `${API_BASE_URL}/auth/login`);
 
-      console.log('Attempting login to:', loginUrl);
-
-      const response = await fetch(loginUrl, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,20 +70,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           username: email,
           password: password,
         }),
-        signal: abortController.signal,
       });
 
-      console.log('Login response status:', response.status);
-
       if (!response.ok) {
-        const error = await response.json().catch(() => ({
-          detail: `HTTP ${response.status}: ${response.statusText}`
-        }));
+        const error = await response.json();
         throw new Error(error.detail || 'Login failed');
       }
 
       const data = await response.json();
-      console.log('Login response data:', data);
 
       if (data.success && data.user && data.token) {
         // Store token and user info
@@ -90,38 +86,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setToken(data.token);
         setUser(data.user);
-
-        console.log('Login successful, user:', data.user);
       } else {
-        throw new Error(data.message || 'Login failed: Invalid response format');
+        throw new Error(data.message || 'Login failed');
       }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Login request cancelled');
-        return;
-      }
-
+    } catch (error) {
       console.error('Login error:', error);
-
-      // Provide user-friendly error messages
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Cannot connect to server. Please check your internet connection.');
-      }
-
       throw error;
     }
   };
 
   const register = async (email: string, password: string, mobileNo: string, userType: 'Customer' | 'Vendor', companyCode: number) => {
-    const abortController = new AbortController();
-
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
-      const registerUrl = `${API_BASE_URL}/api/auth/register`;
+      const API_BASE_URL = 'http://143.110.191.22:8020/api';
+      console.log('Register API URL:', `${API_BASE_URL}/auth/register`);
 
-      console.log('Attempting registration to:', registerUrl);
-
-      const response = await fetch(registerUrl, {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,41 +112,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userType: userType,
           companyCode: companyCode,
         }),
-        signal: abortController.signal,
       });
 
-      console.log('Registration response status:', response.status);
-
       if (!response.ok) {
-        const error = await response.json().catch(() => ({
-          detail: `HTTP ${response.status}: ${response.statusText}`
-        }));
+        const error = await response.json();
         throw new Error(error.detail || 'Registration failed');
       }
 
       const data = await response.json();
-      console.log('Registration response data:', data);
 
       if (data.success) {
         // After successful registration, automatically log in
-        console.log('Registration successful, logging in...');
         await login(email, password);
       } else {
         throw new Error(data.message || 'Registration failed');
       }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Registration request cancelled');
-        return;
-      }
-
+    } catch (error) {
       console.error('Registration error:', error);
-
-      // Provide user-friendly error messages
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Cannot connect to server. Please check your internet connection.');
-      }
-
       throw error;
     }
   };
